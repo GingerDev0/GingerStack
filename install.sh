@@ -60,5 +60,4 @@ source "$ROOT_DIR/core/02-traefik.sh"
 [[ "$INSTALL_IMMICH" =~ ^[Yy]$ ]]    && source "$ROOT_DIR/services/immich.sh"
 [[ "$INSTALL_MAIL" =~ ^[Yy]$ ]]      && source "$ROOT_DIR/services/mail.sh"
 
-title "INSTALL COMPLETE"
-ok "All services are up and running!"
+source "$ROOT_DIR/core/99-summary.sh"
