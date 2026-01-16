@@ -17,6 +17,7 @@ Built for:
 - 🔁 Safe to re-run individual services  
 - 🐳 Docker-first, no host pollution  
 - 🚀 Git-friendly (no secrets committed)  
+- 🛡️ **Built-in brute-force protection** via Traefik rate-limit middleware  
 
 ---
 
@@ -82,6 +83,7 @@ The installer will:
 - No secrets are stored in the repo.  
 - Cloudflare token is requested at runtime.  
 - TLS certificates are stored locally and ignored by git.  
+- **All login endpoints are protected by Traefik rate-limiting middleware** to reduce dictionary and brute-force attacks.  
 - Safe to publish this repo publicly.  
 
 ---
@@ -118,6 +120,7 @@ GingerStack is built around:
 - **Containers over host installs**  
 - **Reproducibility over magic**  
 - **Git over zip files**  
+- **Security at the edge** with Traefik middleware  
 
 ---
 
