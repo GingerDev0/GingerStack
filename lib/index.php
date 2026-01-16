@@ -1,4 +1,87 @@
 <?php
+// ============================
+// DOMAIN DETECTION
+// ============================
+$host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+$host = preg_replace('/:\d+$/', '', $host); // strip port if any
+
+// ============================
+// SERVICE DEFINITIONS
+// ============================
+$services = [
+    'Traefik' => [
+        'sub' => 'traefik',
+        'icon' => 'fa-network-wired',
+        'color' => 'text-success',
+        'desc' => 'Reverse Proxy & Router',
+    ],
+    'Portainer' => [
+        'sub' => 'portainer',
+        'icon' => 'fa-diagram-project',
+        'color' => 'text-info',
+        'desc' => 'Docker Management UI',
+    ],
+    'phpMyAdmin' => [
+        'sub' => 'pma',
+        'icon' => 'fa-database',
+        'color' => 'text-warning',
+        'desc' => 'MySQL Administration',
+    ],
+    'Jellyfin' => [
+        'sub' => 'jellyfin',
+        'icon' => 'fa-film',
+        'color' => 'text-danger',
+        'desc' => 'Media Streaming Server',
+    ],
+    'qBittorrent' => [
+        'sub' => 'seedbox',
+        'icon' => 'fa-download',
+        'color' => 'text-warning',
+        'desc' => 'Torrent Client',
+    ],
+    'Immich' => [
+        'sub' => 'immich',
+        'icon' => 'fa-images',
+        'color' => 'text-success',
+        'desc' => 'Photo & Video Backup',
+    ],
+    'Mail' => [
+        'sub' => 'mail',
+        'icon' => 'fa-envelope-open-text',
+        'color' => 'text-primary',
+        'desc' => 'Mail Server',
+    ],
+    'Webmail' => [
+        'sub' => 'webmail',
+        'icon' => 'fa-inbox',
+        'color' => 'text-primary',
+        'desc' => 'Roundcube Webmail',
+    ],
+];
+
+// ============================
+// URL CHECK FUNCTION
+// ============================
+function checkService(string $url, int $timeout = 2): bool
+{
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_NOBODY => true,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => $timeout,
+        CURLOPT_CONNECTTIMEOUT => $timeout,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_SSL_VERIFYPEER => false,
+        CURLOPT_SSL_VERIFYHOST => false,
+    ]);
+
+    curl_exec($ch);
+    $ok = !curl_errno($ch);
+    curl_close($ch);
+
+    return $ok;
+}
+
 // Runtime info (safe, no shell_exec)
 $phpVersion   = phpversion();
 $phpSapi      = php_sapi_name();
@@ -148,10 +231,6 @@ $uploadMax    = ini_get('upload_max_filesize');
                 IP <?= htmlspecialchars($serverIP) ?> <span class="muted">(Docker internal)</span>
             </div>
             <div class="col-md-4">
-                <i class="fa-solid fa-folder-open icon text-success me-2"></i>
-                <?= htmlspecialchars($docRoot) ?>
-            </div>
-            <div class="col-md-4">
                 <i class="fa-solid fa-puzzle-piece icon text-danger me-2"></i>
                 <?= $loadedExt ?> PHP extensions
             </div>
@@ -163,134 +242,66 @@ $uploadMax    = ini_get('upload_max_filesize');
                 <i class="fa-solid fa-upload icon text-primary me-2"></i>
                 Upload max <?= htmlspecialchars($uploadMax) ?>
             </div>
+			<div class="col-md-4">
+                <i class="fa-solid fa-folder-open icon text-success me-2"></i>
+                /root/apps/lamp/www
+            </div>
+			<div class="col-md-4">
+                <i class="fa-solid fa-gear icon text-success me-2"></i>
+                /root/apps/lamp/php/conf.d/custom.ini
+            </div>
         </div>
     </section>
 
-    <!-- SERVICES -->
-    <section class="panel">
-        <div class="panel-title">
-            <i class="fa-solid fa-layer-group me-2"></i>
-            Services
-        </div>
+<!-- SERVICES -->
+<section class="panel">
+    <div class="panel-title">
+        <i class="fa-solid fa-layer-group me-2"></i>
+        Services
+    </div>
 
-        <div class="row g-4">
+    <div class="row g-4">
 
-            <!-- LAMP -->
+        <?php foreach ($services as $name => $svc): ?>
+            <?php
+                $url = "https://{$svc['sub']}.$host";
+                $online = checkService($url);
+            ?>
             <div class="col-md-4">
                 <div class="service-card">
                     <div class="d-flex align-items-center mb-2">
-                        <i class="fa-solid fa-globe icon text-success me-2"></i>
-                        <span class="service-title">LAMP Stack</span>
+                        <i class="fa-solid <?= $svc['icon'] ?> icon <?= $svc['color'] ?> me-2"></i>
+                        <span class="service-title"><?= htmlspecialchars($name) ?></span>
                     </div>
-                    <p class="service-meta mb-2">Apache · PHP · MySQL</p>
-                    <p class="mb-3">
-                        Core web stack serving this page.
+
+                    <p class="service-meta mb-2">
+                        <?= htmlspecialchars($svc['desc']) ?>
                     </p>
-                    <span class="badge bg-success">
-                        <i class="fa-solid fa-circle-check me-1"></i>
-                        Active
-                    </span>
+
+                    <p class="mb-3">
+                        <a href="<?= htmlspecialchars($url) ?>" target="_blank" class="text-decoration-none">
+                            <?= htmlspecialchars($url) ?>
+                        </a>
+                    </p>
+
+                    <?php if ($online): ?>
+                        <span class="badge bg-success">
+                            <i class="fa-solid fa-circle-check me-1"></i>
+                            Active
+                        </span>
+                    <?php else: ?>
+                        <span class="badge bg-danger">
+                            <i class="fa-solid fa-circle-xmark me-1"></i>
+                            Offline
+                        </span>
+                    <?php endif; ?>
                 </div>
             </div>
+        <?php endforeach; ?>
 
-            <!-- Portainer -->
-            <div class="col-md-4">
-                <div class="service-card">
-                    <div class="d-flex align-items-center mb-2">
-                        <i class="fa-solid fa-diagram-project icon text-info me-2"></i>
-                        <span class="service-title">Portainer</span>
-                    </div>
-                    <p class="service-meta mb-2">Docker Management UI</p>
-                    <p class="mb-3">Manage containers and volumes.</p>
-                    <span class="badge bg-secondary">
-                        <i class="fa-solid fa-circle-minus me-1"></i>
-                        Optional
-                    </span>
-                </div>
-            </div>
+    </div>
+</section>
 
-            <!-- Jellyfin -->
-            <div class="col-md-4">
-                <div class="service-card">
-                    <div class="d-flex align-items-center mb-2">
-                        <i class="fa-solid fa-film icon text-danger me-2"></i>
-                        <span class="service-title">Jellyfin</span>
-                    </div>
-                    <p class="service-meta mb-2">Media Streaming Server</p>
-                    <p class="mb-3">Stream movies, TV, and music.</p>
-                    <span class="badge bg-secondary">
-                        <i class="fa-solid fa-circle-minus me-1"></i>
-                        Optional
-                    </span>
-                </div>
-            </div>
-
-            <!-- qBittorrent -->
-            <div class="col-md-4">
-                <div class="service-card">
-                    <div class="d-flex align-items-center mb-2">
-                        <i class="fa-solid fa-download icon text-warning me-2"></i>
-                        <span class="service-title">qBittorrent</span>
-                    </div>
-                    <p class="service-meta mb-2">Seedbox / Download Manager</p>
-                    <p class="mb-3">Web-based torrent client.</p>
-                    <span class="badge bg-secondary">
-                        <i class="fa-solid fa-circle-minus me-1"></i>
-                        Optional
-                    </span>
-                </div>
-            </div>
-
-            <!-- Immich -->
-            <div class="col-md-4">
-                <div class="service-card">
-                    <div class="d-flex align-items-center mb-2">
-                        <i class="fa-solid fa-images icon text-success me-2"></i>
-                        <span class="service-title">Immich</span>
-                    </div>
-                    <p class="service-meta mb-2">Photo & Video Backup</p>
-                    <p class="mb-3">Self-hosted Google Photos alternative.</p>
-                    <span class="badge bg-secondary">
-                        <i class="fa-solid fa-circle-minus me-1"></i>
-                        Optional
-                    </span>
-                </div>
-            </div>
-
-            <!-- Mail -->
-            <div class="col-md-4">
-                <div class="service-card">
-                    <div class="d-flex align-items-center mb-2">
-                        <i class="fa-solid fa-envelope-open-text icon text-primary me-2"></i>
-                        <span class="service-title">Mail Stack</span>
-                    </div>
-                    <p class="service-meta mb-2">poste.io · Roundcube</p>
-                    <p class="mb-3">Full mail server and webmail.</p>
-                    <span class="badge bg-secondary">
-                        <i class="fa-solid fa-circle-minus me-1"></i>
-                        Optional
-                    </span>
-                </div>
-            </div>
-
-            <!-- Cowrie -->
-            <div class="col-md-4">
-                <div class="service-card">
-                    <div class="d-flex align-items-center mb-2">
-                        <i class="fa-solid fa-user-secret icon text-danger me-2"></i>
-                        <span class="service-title">Cowrie Honeypot</span>
-                    </div>
-                    <p class="service-meta mb-2">SSH Attack Detection</p>
-                    <p class="mb-3">Logs and traps malicious SSH attempts.</p>
-                    <span class="badge bg-secondary">
-                        <i class="fa-solid fa-circle-minus me-1"></i>
-                        Optional
-                    </span>
-                </div>
-            </div>
-
-        </div>
-    </section>
 
     <!-- FOOTER -->
     <footer class="text-end muted small">

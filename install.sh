@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 [ -z "$BASH_VERSION" ] && { echo "ERROR: Run with bash"; exit 1; }
 set -e
+trap 'err "Script exited at line $LINENO"' ERR
 
 command -v jq >/dev/null 2>&1 || { echo "ERROR: jq is required"; exit 1; }
 
