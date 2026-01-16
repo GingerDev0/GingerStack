@@ -8,12 +8,49 @@ command -v jq >/dev/null 2>&1 || { echo "ERROR: jq is required"; exit 1; }
 ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # --------------------------------------------------
+# Directory bootstrap (ensure existence + perms)
+# --------------------------------------------------
+REQUIRED_DIRS=(
+  "$ROOT_DIR/lib"
+  "$ROOT_DIR/logs"
+)
+
+for dir in "${REQUIRED_DIRS[@]}"; do
+  if [[ ! -d "$dir" ]]; then
+    mkdir -p "$dir"
+  fi
+  chmod 0777 "$dir"
+done
+
+# --------------------------------------------------
+# Logging
+# --------------------------------------------------
+LOG_DIR="$ROOT_DIR/logs"
+LOG_FILE="$LOG_DIR/install-$(date +%Y%m%d-%H%M%S).log"
+
+exec > >(tee -a "$LOG_FILE") 2>&1
+
+echo "────────────────────────────────────────"
+echo "GingerStack Installer"
+echo "Started : $(date -Is)"
+echo "Logfile : $LOG_FILE"
+echo "────────────────────────────────────────"
+
+# --------------------------------------------------
+# Locking
+# --------------------------------------------------
+source "$ROOT_DIR/lib/lock.sh"
+lock_init gingerstack-installer
+lock_update "Installer started"
+lock_update "Logfile: $LOG_FILE"
+
+# --------------------------------------------------
 # Load / bootstrap .env
 # --------------------------------------------------
 ENV_FILE="$ROOT_DIR/.env"
 
 if [[ ! -f "$ENV_FILE" ]]; then
-  cat > "$ENV_FILE" <<'EOF'
+  cat >"$ENV_FILE" <<'EOF'
 # GingerStack environment configuration
 # ------------------------------------
 # Cloudflare API Token
@@ -50,6 +87,8 @@ source "$ROOT_DIR/lib/logging.sh"
   exit 1
 }
 
+lock_update "Environment loaded"
+
 # --------------------------------------------------
 # Source libraries
 # --------------------------------------------------
@@ -76,6 +115,7 @@ read -p "Install LAMP stack? (y/n): " INSTALL_LAMP
 # LAMP-specific options
 # --------------------------------------------------
 if [[ "$INSTALL_LAMP" =~ ^[Yy]$ ]]; then
+  lock_update "LAMP selected"
 
   mapfile -t PHP_VERSIONS < <(
     curl -s "https://registry.hub.docker.com/v2/repositories/library/php/tags?page_size=100" |
@@ -110,6 +150,7 @@ if [[ "$INSTALL_LAMP" =~ ^[Yy]$ ]]; then
   fi
 
   ok "Using PHP $PHP_VER"
+  lock_update "PHP version selected: $PHP_VER"
 
   read -s -p "MySQL root password: " MYSQL_ROOT_PASS; echo
   read -s -p "Confirm MySQL root password: " MYSQL_ROOT_PASS2; echo
@@ -127,6 +168,8 @@ read -p "Install Immich? (y/n): " INSTALL_IMMICH
 read -p "Install Mail Server + Webmail? (y/n): " INSTALL_MAIL
 read -p "Install WireGuard VPN? (y/n): " INSTALL_WIREGUARD
 read -p "Install SSH Honeypot (Cowrie)? (y/n): " INSTALL_HONEYPOT
+
+lock_update "Service selection complete"
 
 # --------------------------------------------------
 # Cloudflare zone selection
@@ -155,6 +198,7 @@ export ZONE_NAME="${ZONE_NAMES[$INDEX]}"
 export ZONE_ID="${ZONE_IDS[$INDEX]}"
 
 ok "Using zone: $ZONE_NAME"
+lock_update "Cloudflare zone selected: $ZONE_NAME"
 
 # --------------------------------------------------
 # Summary
@@ -167,7 +211,6 @@ echo "Domain:"
 echo "  • $ZONE_NAME"
 echo
 echo "Selected services:"
-
 [[ "$INSTALL_LAMP" =~ ^[Yy]$ ]]      && echo "  • LAMP stack (PHP $PHP_VER)"
 [[ "$INSTALL_PORTAINER" =~ ^[Yy]$ ]] && echo "  • Portainer"
 [[ "$INSTALL_JELLYFIN" =~ ^[Yy]$ ]]  && echo "  • Jellyfin"
@@ -178,14 +221,10 @@ echo "Selected services:"
 [[ "$INSTALL_HONEYPOT" =~ ^[Yy]$ ]]  && echo "  • SSH Honeypot (Cowrie)"
 
 echo
-echo "The installation will now:"
-echo "  • Pull Docker images"
-echo "  • Configure networking, DNS, and SSL"
-echo "  • Deploy and start the selected services"
-echo
 echo "☕ Grab a coffee — press ENTER when you're ready."
-echo "────────────────────────────────────────────────────────"
 read -p ""
+
+lock_update "Installation started"
 
 # --------------------------------------------------
 # Core
@@ -208,8 +247,12 @@ source "$ROOT_DIR/core/02-traefik.sh"
 
 if [[ "$INSTALL_HONEYPOT" =~ ^[Yy]$ ]]; then
   mkdir -p /root/apps/cowrie/var/lib/cowrie
+  chmod -R 0777 /root/apps/cowrie
   sed -i 's/\r$//' "$ROOT_DIR/services/honeypot.sh"
   source "$ROOT_DIR/services/honeypot.sh"
 fi
+
+lock_update "Installation complete"
+echo "Finished : $(date -Is)"
 
 source "$ROOT_DIR/core/99-summary.sh"
