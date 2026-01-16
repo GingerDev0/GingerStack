@@ -2,6 +2,8 @@ info "Installing SSH honeypot (Cowrie)..."
 
 docker rm -f ssh-honeypot >/dev/null 2>&1 || true
 
+mkdir -p /root/apps/honeypot/data/lib/cowrie
+
 docker run -d \
   --name ssh-honeypot \
   --restart unless-stopped \
@@ -12,5 +14,5 @@ docker run -d \
 sleep 5
 
 ok "SSH honeypot active on port 22"
-ok "Real SSH should now be accessed on port 2202"
+ok "Real SSH should now be accessed on your chosen port"
 ok "Logs: /root/apps/honeypot/data/log"
