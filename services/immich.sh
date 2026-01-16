@@ -13,16 +13,27 @@ services:
       POSTGRES_USER: immich
       POSTGRES_DB: immich
     networks: [proxy]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U immich"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   server:
     image: ghcr.io/immich-app/immich-server:release
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
     environment:
       DB_HOSTNAME: postgres
       DB_USERNAME: immich
       DB_PASSWORD: immichpass
       DB_DATABASE_NAME: immich
       REDIS_HOSTNAME: redis
-    volumes: [ "./library:/usr/src/app/upload" ]
+    volumes:
+      - ./library:/usr/src/app/upload
     networks: [proxy]
     labels:
       - "traefik.enable=true"
@@ -31,6 +42,7 @@ services:
       - "traefik.http.routers.immich.tls.certresolver=cloudflare"
       - "traefik.http.routers.immich.middlewares=login-ratelimit@file"
       - "traefik.http.services.immich.loadbalancer.server.port=3001"
+
 networks:
   proxy:
     external: true
