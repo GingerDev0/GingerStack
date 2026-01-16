@@ -19,6 +19,7 @@ Built for:
 - 🚀 Git-friendly (no secrets committed)  
 - 🛡️ Built-in brute-force protection via Traefik rate-limit middleware
 - 🎯 SSH Honeypot with Cowrie for early attack detection
+- 🛡️ WireGuard VPN for secure remote access
 
 ---
 
@@ -32,7 +33,8 @@ You can enable any of these during install:
 - **qBittorrent** — Seedbox / download manager  
 - **Immich** — Photo & video backup platform  
 - **Mail Stack** — poste.io + Roundcube webmail
-- **Cowrie Honeypot** — SSH attack detection and logging 
+- **Cowrie Honeypot** — SSH attack detection and logging
+- **Wireguard VPN** — Secure remote access to internal services
 
 ---
 
@@ -77,6 +79,7 @@ The installer will:
    ├─ immich.sh
    └─ mail.sh
    └─ honeypot.sh
+   └─ wireguard.sh
 ```
 
 ---
