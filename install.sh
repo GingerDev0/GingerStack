@@ -2,13 +2,27 @@
 [ -z "$BASH_VERSION" ] && { echo "ERROR: Run with bash"; exit 1; }
 set -e
 
+command -v jq >/dev/null 2>&1 || { echo "ERROR: jq is required"; exit 1; }
+
 ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 source "$ROOT_DIR/lib/logging.sh"
 source "$ROOT_DIR/lib/docker.sh"
 source "$ROOT_DIR/lib/cloudflare.sh"
 
-title "GingerStack Modular Installer"
+clear
+cat <<'EOF'
+   _____ _                       _____ _             _
+  / ____(_)                     / ____| |           | |
+ | |  __ _ _ __   __ _  ___ _ _| (___ | |_ __ _  ___| | __
+ | | |_ | | '_ \ / _` |/ _ \ '__\___ \| __/ _` |/ __| |/ /
+ | |__| | | | | | (_| |  __/ |  ____) | || (_| | (__|   <
+  \_____|_|_| |_|\__, |\___|_| |_____/ \__\__,_|\___|_|\_\
+                  __/ |
+                 |___/
+
+                GingerStack Installer
+EOF
 
 read -p "Install LAMP stack? (y/n): " INSTALL_LAMP
 read -p "Install Portainer? (y/n): " INSTALL_PORTAINER
@@ -26,7 +40,9 @@ if [[ "$INSTALL_LAMP" =~ ^[Yy]$ ]]; then
   [[ "$MYSQL_ROOT_PASS" != "$MYSQL_ROOT_PASS2" ]] && err "Passwords do not match" && exit 1
 fi
 
-title "Cloudflare API Token Required"
+echo
+echo "Cloudflare API Token Required"
+echo
 read -p "Paste Cloudflare API token: " CF_TOKEN
 export CF_TOKEN
 
@@ -60,6 +76,11 @@ source "$ROOT_DIR/core/02-traefik.sh"
 [[ "$INSTALL_SEEDBOX" =~ ^[Yy]$ ]]   && source "$ROOT_DIR/services/seedbox.sh"
 [[ "$INSTALL_IMMICH" =~ ^[Yy]$ ]]    && source "$ROOT_DIR/services/immich.sh"
 [[ "$INSTALL_MAIL" =~ ^[Yy]$ ]]      && source "$ROOT_DIR/services/mail.sh"
-[[ "$INSTALL_HONEYPOT" =~ ^[Yy]$ ]]  && source "$ROOT_DIR/services/honeypot.sh"
+
+if [[ "$INSTALL_HONEYPOT" =~ ^[Yy]$ ]]; then
+  mkdir -p /root/apps/cowrie/var/lib/cowrie
+  sed -i 's/\r$//' "$ROOT_DIR/services/honeypot.sh"
+  source "$ROOT_DIR/services/honeypot.sh"
+fi
 
 source "$ROOT_DIR/core/99-summary.sh"
