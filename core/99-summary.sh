@@ -1,6 +1,3 @@
-# --------------------------------------------------
-# FINAL OUTPUT
-# --------------------------------------------------
 title "INSTALL COMPLETE"
 
 info "Traefik is handling SSL + routing."
@@ -30,6 +27,19 @@ echo
 echo "DNS:"
 [[ "$INSTALL_MAIL" =~ ^[Yy]$ ]] && echo " - MX, SPF, DMARC configured"
 [[ "$INSTALL_MAIL" =~ ^[Yy]$ ]] && echo " - DKIM configured via poste.io"
+
+echo
+echo "Directories:"
+[[ "$INSTALL_LAMP" =~ ^[Yy]$ ]] && echo " - LAMP web root:        /root/apps/lamp/www"
+[[ "$INSTALL_JELLYFIN" =~ ^[Yy]$ ]] && echo " - Jellyfin config:     /root/apps/jellyfin"
+[[ "$INSTALL_IMMICH" =~ ^[Yy]$ ]] && echo " - Immich library:      /root/apps/immich/library"
+[[ "$INSTALL_MAIL" =~ ^[Yy]$ ]] && echo " - Mail data:           /root/apps/mail/poste"
+[[ "$INSTALL_SEEDBOX" =~ ^[Yy]$ ]] && echo " - Seedbox downloads:   /root/downloads"
+
+echo
+echo "Media Mapping:"
+[[ "$INSTALL_SEEDBOX" =~ ^[Yy]$ ]] && echo " - /root/downloads/movies  ->  /media/movies  ->  Jellyfin"
+[[ "$INSTALL_SEEDBOX" =~ ^[Yy]$ ]] && echo " - /root/downloads/tv      ->  /media/tv      ->  Jellyfin"
 
 if [[ -n "$SEEDBOX_PASS" ]]; then
   echo
