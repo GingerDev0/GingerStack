@@ -16,6 +16,7 @@ read -p "Install Jellyfin? (y/n): " INSTALL_JELLYFIN
 read -p "Install Seedbox (qBittorrent)? (y/n): " INSTALL_SEEDBOX
 read -p "Install Immich? (y/n): " INSTALL_IMMICH
 read -p "Install Mail Server + Webmail? (y/n): " INSTALL_MAIL
+read -p "Install SSH Honeypot (Cowrie)? (y/n): " INSTALL_HONEYPOT
 
 if [[ "$INSTALL_LAMP" =~ ^[Yy]$ ]]; then
   read -p "PHP version (8.1 / 8.2 / 8.3) [8.2]: " PHP_VER
@@ -59,5 +60,6 @@ source "$ROOT_DIR/core/02-traefik.sh"
 [[ "$INSTALL_SEEDBOX" =~ ^[Yy]$ ]]   && source "$ROOT_DIR/services/seedbox.sh"
 [[ "$INSTALL_IMMICH" =~ ^[Yy]$ ]]    && source "$ROOT_DIR/services/immich.sh"
 [[ "$INSTALL_MAIL" =~ ^[Yy]$ ]]      && source "$ROOT_DIR/services/mail.sh"
+[[ "$INSTALL_HONEYPOT" =~ ^[Yy]$ ]]  && source "$ROOT_DIR/services/honeypot.sh"
 
 source "$ROOT_DIR/core/99-summary.sh"

@@ -41,6 +41,20 @@ echo "Media Mapping:"
 [[ "$INSTALL_SEEDBOX" =~ ^[Yy]$ ]] && echo " - /root/downloads/movies  ->  /media/movies  ->  Jellyfin"
 [[ "$INSTALL_SEEDBOX" =~ ^[Yy]$ ]] && echo " - /root/downloads/tv      ->  /media/tv      ->  Jellyfin"
 
+if [[ "$INSTALL_HONEYPOT" =~ ^[Yy]$ ]]; then
+  echo
+  echo "Security:"
+  echo " - SSH honeypot active on port 22"
+  [[ -n "$SSH_PORT" ]] && echo " - Real SSH configured on port $SSH_PORT"
+  echo
+  echo "To change your real SSH port:"
+  echo "  1) Edit config:  nano /etc/ssh/sshd_config"
+  echo "  2) Set:          Port <your-port>"
+  echo "  3) Restart SSH: systemctl restart ssh"
+  echo
+  echo "Test with: ssh -p <your-port> user@server"
+fi
+
 if [[ -n "$SEEDBOX_PASS" ]]; then
   echo
   echo "=========================================="
