@@ -17,7 +17,8 @@ Built for:
 - 🔁 Safe to re-run individual services  
 - 🐳 Docker-first, no host pollution  
 - 🚀 Git-friendly (no secrets committed)  
-- 🛡️ **Built-in brute-force protection** via Traefik rate-limit middleware  
+- 🛡️ Built-in brute-force protection via Traefik rate-limit middleware
+- 🎯 SSH Honeypot with Cowrie for early attack detection
 
 ---
 
@@ -30,7 +31,8 @@ You can enable any of these during install:
 - **Jellyfin** — Media streaming server  
 - **qBittorrent** — Seedbox / download manager  
 - **Immich** — Photo & video backup platform  
-- **Mail Stack** — poste.io + Roundcube webmail  
+- **Mail Stack** — poste.io + Roundcube webmail
+- **Cowrie Honeypot** — SSH attack detection and logging 
 
 ---
 
@@ -74,6 +76,24 @@ The installer will:
    ├─ seedbox.sh
    ├─ immich.sh
    └─ mail.sh
+   └─ honeypot.sh
+```
+
+---
+
+## 🕵️ SSH Honeypot (Cowrie)
+
+GingerStack can deploy **Cowrie**, a production-grade SSH honeypot.
+
+- Cowrie listens on **port 22**  
+- Your real SSH runs on a **custom port you choose**  
+- Attackers hit the honeypot, not your real system  
+- All attempts are logged for analysis  
+
+View logs:
+
+```bash
+docker logs cowrie
 ```
 
 ---
