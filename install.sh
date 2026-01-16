@@ -26,6 +26,62 @@ cat <<'EOF'
 EOF
 
 read -p "Install LAMP stack? (y/n): " INSTALL_LAMP
+
+# --------------------------------------------------
+# LAMP-specific options (only if enabled)
+# --------------------------------------------------
+if [[ "$INSTALL_LAMP" =~ ^[Yy]$ ]]; then
+
+  # Detect available PHP versions (stable apache tags)
+  mapfile -t PHP_VERSIONS < <(
+    curl -s "https://registry.hub.docker.com/v2/repositories/library/php/tags?page_size=100" |
+      jq -r '.results[].name' |
+      grep -E '^[0-9]+\.[0-9]+-apache$' |
+      sed 's/-apache//' |
+      sort -V |
+      uniq
+  )
+
+  # Fallback if Docker Hub is unreachable
+  if [[ ${#PHP_VERSIONS[@]} -eq 0 ]]; then
+    warn "Could not fetch PHP versions — using safe defaults"
+    PHP_VERSIONS=(8.3 8.2 8.1)
+  fi
+
+  LATEST_PHP="${PHP_VERSIONS[-1]}"
+
+  echo
+  echo "Available PHP versions:"
+  i=1
+  for v in "${PHP_VERSIONS[@]}"; do
+    if [[ "$v" == "$LATEST_PHP" ]]; then
+      echo "  [$i] $v (latest stable)"
+    else
+      echo "  [$i] $v"
+    fi
+    ((i++))
+  done
+
+  read -p "Choose PHP version [default: latest]: " PHP_CHOICE
+
+  if [[ -z "$PHP_CHOICE" ]]; then
+    PHP_VER="$LATEST_PHP"
+  else
+    PHP_VER="${PHP_VERSIONS[$((PHP_CHOICE-1))]}"
+  fi
+
+  ok "Using PHP $PHP_VER"
+
+  # MySQL root password
+  read -s -p "MySQL root password: " MYSQL_ROOT_PASS; echo
+  read -s -p "Confirm MySQL root password: " MYSQL_ROOT_PASS2; echo
+
+  [[ "$MYSQL_ROOT_PASS" != "$MYSQL_ROOT_PASS2" ]] && err "Passwords do not match" && exit 1
+fi
+
+# --------------------------------------------------
+# Other services
+# --------------------------------------------------
 read -p "Install Portainer? (y/n): " INSTALL_PORTAINER
 read -p "Install Jellyfin? (y/n): " INSTALL_JELLYFIN
 read -p "Install Seedbox (qBittorrent)? (y/n): " INSTALL_SEEDBOX
@@ -33,14 +89,6 @@ read -p "Install Immich? (y/n): " INSTALL_IMMICH
 read -p "Install Mail Server + Webmail? (y/n): " INSTALL_MAIL
 read -p "Install WireGuard VPN? (y/n): " INSTALL_WIREGUARD
 read -p "Install SSH Honeypot (Cowrie)? (y/n): " INSTALL_HONEYPOT
-
-if [[ "$INSTALL_LAMP" =~ ^[Yy]$ ]]; then
-  read -p "PHP version (8.1 / 8.2 / 8.3) [8.2]: " PHP_VER
-  PHP_VER=${PHP_VER:-8.2}
-  read -s -p "MySQL root password: " MYSQL_ROOT_PASS; echo
-  read -s -p "Confirm MySQL root password: " MYSQL_ROOT_PASS2; echo
-  [[ "$MYSQL_ROOT_PASS" != "$MYSQL_ROOT_PASS2" ]] && err "Passwords do not match" && exit 1
-fi
 
 echo
 echo "Cloudflare API Token Required"

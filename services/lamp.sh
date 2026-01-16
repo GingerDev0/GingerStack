@@ -1,5 +1,18 @@
+#!/usr/bin/env bash
+
 info "Installing LAMP stack..."
 
+# --------------------------------------------------
+# REQUIRED VARIABLES
+# --------------------------------------------------
+: "${PHP_VER:?PHP_VER is not set}"
+: "${MYSQL_ROOT_PASS:?MYSQL_ROOT_PASS is not set}"
+
+CHANGE_PHP_VERSION="${CHANGE_PHP_VERSION:-n}"
+
+# --------------------------------------------------
+# Paths
+# --------------------------------------------------
 LAMP_DIR="/root/apps/lamp"
 WWW_DIR="$LAMP_DIR/www"
 PHP_DIR="$LAMP_DIR/php"
@@ -9,21 +22,21 @@ SRC_INDEX="$ROOT_DIR/lib/index.php"
 SRC_LOGO="$ROOT_DIR/lib/logo.png"
 SRC_FAVICON="$ROOT_DIR/lib/favicon.ico"
 
-# -------------------------------------------------------------------
+# --------------------------------------------------
 # Directory setup
-# -------------------------------------------------------------------
+# --------------------------------------------------
 mkdir -p "$WWW_DIR" "$PHP_CONF_DIR"
 
-# -------------------------------------------------------------------
+# --------------------------------------------------
 # Default web files (do not overwrite existing)
-# -------------------------------------------------------------------
+# --------------------------------------------------
 [[ ! -f "$WWW_DIR/index.php" ]] && cp "$SRC_INDEX" "$WWW_DIR/index.php"
 [[ -f "$SRC_LOGO" && ! -f "$WWW_DIR/logo.png" ]] && cp "$SRC_LOGO" "$WWW_DIR/logo.png"
 [[ -f "$SRC_FAVICON" && ! -f "$WWW_DIR/favicon.ico" ]] && cp "$SRC_FAVICON" "$WWW_DIR/favicon.ico"
 
-# -------------------------------------------------------------------
+# --------------------------------------------------
 # Default PHP configuration (custom.ini)
-# -------------------------------------------------------------------
+# --------------------------------------------------
 if [[ ! -f "$PHP_CONF_DIR/custom.ini" ]]; then
 cat > "$PHP_CONF_DIR/custom.ini" <<EOF
 memory_limit=512M
@@ -36,10 +49,13 @@ date.timezone=UTC
 EOF
 fi
 
-# -------------------------------------------------------------------
-# Docker Compose
-# -------------------------------------------------------------------
-cat > "$LAMP_DIR/docker-compose.yml" <<EOF
+# --------------------------------------------------
+# Docker Compose (regenerate if PHP version changes)
+# --------------------------------------------------
+if [[ "$CHANGE_PHP_VERSION" =~ ^[Yy]$ || ! -f "$LAMP_DIR/docker-compose.yml" ]]; then
+  info "Generating Docker Compose (PHP ${PHP_VER})"
+
+  cat > "$LAMP_DIR/docker-compose.yml" <<EOF
 services:
   apache:
     image: php:${PHP_VER}-apache
@@ -88,8 +104,19 @@ networks:
   proxy:
     external: true
 EOF
+else
+  info "Using existing Docker Compose (PHP unchanged)"
+fi
 
-# -------------------------------------------------------------------
-# Start stack
-# -------------------------------------------------------------------
-cd "$LAMP_DIR" && docker compose up -d
+# --------------------------------------------------
+# Start / Update stack
+# --------------------------------------------------
+cd "$LAMP_DIR"
+
+if [[ "$CHANGE_PHP_VERSION" =~ ^[Yy]$ ]]; then
+  info "Updating PHP to version ${PHP_VER}"
+  docker compose pull apache
+  docker compose up -d apache
+else
+  docker compose up -d
+fi
