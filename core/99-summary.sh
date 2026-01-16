@@ -8,6 +8,7 @@ echo "Dashboards:"
 echo " - Traefik:    https://traefik.$ZONE_NAME"
 [[ "$INSTALL_PORTAINER" =~ ^[Yy]$ ]] && echo " - Portainer:  https://portainer.$ZONE_NAME"
 [[ "$INSTALL_MAIL" =~ ^[Yy]$ ]] && echo " - Mail Admin: https://mailadmin.$ZONE_NAME"
+[[ "$INSTALL_WIREGUARD" =~ ^[Yy]$ ]] && echo " - WireGuard:  https://wg.$ZONE_NAME"
 
 echo
 echo "Services:"
@@ -17,6 +18,11 @@ echo "Services:"
 [[ "$INSTALL_SEEDBOX" =~ ^[Yy]$ ]] && echo " - Seedbox:    https://seedbox.$ZONE_NAME"
 [[ "$INSTALL_IMMICH" =~ ^[Yy]$ ]] && echo " - Immich:     https://immich.$ZONE_NAME"
 [[ "$INSTALL_MAIL" =~ ^[Yy]$ ]] && echo " - Webmail:    https://webmail.$ZONE_NAME"
+
+echo
+echo "VPN:"
+[[ "$INSTALL_WIREGUARD" =~ ^[Yy]$ ]] && echo " - WireGuard UDP: 51820"
+[[ "$INSTALL_WIREGUARD" =~ ^[Yy]$ ]] && echo " - WireGuard UI:  https://wg.$ZONE_NAME"
 
 echo
 echo "Mail Services:"
@@ -35,6 +41,7 @@ echo "Directories:"
 [[ "$INSTALL_IMMICH" =~ ^[Yy]$ ]] && echo " - Immich library:      /root/apps/immich/library"
 [[ "$INSTALL_MAIL" =~ ^[Yy]$ ]] && echo " - Mail data:           /root/apps/mail/poste"
 [[ "$INSTALL_SEEDBOX" =~ ^[Yy]$ ]] && echo " - Seedbox downloads:   /root/downloads"
+[[ "$INSTALL_WIREGUARD" =~ ^[Yy]$ ]] && echo " - WireGuard config:    /root/apps/wireguard"
 
 echo
 echo "Media Mapping:"

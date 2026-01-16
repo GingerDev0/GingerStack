@@ -30,6 +30,7 @@ read -p "Install Jellyfin? (y/n): " INSTALL_JELLYFIN
 read -p "Install Seedbox (qBittorrent)? (y/n): " INSTALL_SEEDBOX
 read -p "Install Immich? (y/n): " INSTALL_IMMICH
 read -p "Install Mail Server + Webmail? (y/n): " INSTALL_MAIL
+read -p "Install WireGuard VPN? (y/n): " INSTALL_WIREGUARD
 read -p "Install SSH Honeypot (Cowrie)? (y/n): " INSTALL_HONEYPOT
 
 if [[ "$INSTALL_LAMP" =~ ^[Yy]$ ]]; then
@@ -56,7 +57,11 @@ i=1
 mapfile -t ZONE_NAMES < <(echo "$ZONES_JSON" | jq -r '.result[].name')
 mapfile -t ZONE_IDS   < <(echo "$ZONES_JSON" | jq -r '.result[].id')
 
-for z in "${ZONE_NAMES[@]}"; do echo " [$i] $z"; ((i++)); done
+for z in "${ZONE_NAMES[@]}"; do
+  echo " [$i] $z"
+  ((i++))
+done
+
 read -p "Select zone number: " ZONE_CHOICE
 
 INDEX=$((ZONE_CHOICE-1))
@@ -64,6 +69,39 @@ export ZONE_NAME="${ZONE_NAMES[$INDEX]}"
 export ZONE_ID="${ZONE_IDS[$INDEX]}"
 
 ok "Using zone: $ZONE_NAME"
+
+# --------------------------------------------------
+# Pre-install pause + selected services summary
+# --------------------------------------------------
+echo
+echo "────────────────────────────────────────────────────────"
+echo "🚀 Ready to install GingerStack"
+echo
+echo "Domain:"
+echo "  • $ZONE_NAME"
+echo
+echo "Selected services:"
+
+[[ "$INSTALL_LAMP" =~ ^[Yy]$ ]]      && echo "  • LAMP stack (PHP $PHP_VER)"
+[[ "$INSTALL_PORTAINER" =~ ^[Yy]$ ]] && echo "  • Portainer"
+[[ "$INSTALL_JELLYFIN" =~ ^[Yy]$ ]]  && echo "  • Jellyfin"
+[[ "$INSTALL_SEEDBOX" =~ ^[Yy]$ ]]   && echo "  • Seedbox (qBittorrent)"
+[[ "$INSTALL_IMMICH" =~ ^[Yy]$ ]]    && echo "  • Immich"
+[[ "$INSTALL_MAIL" =~ ^[Yy]$ ]]      && echo "  • Mail server + Webmail"
+[[ "$INSTALL_WIREGUARD" =~ ^[Yy]$ ]] && echo "  • WireGuard VPN"
+[[ "$INSTALL_HONEYPOT" =~ ^[Yy]$ ]]  && echo "  • SSH Honeypot (Cowrie)"
+
+echo
+echo "The installation will now:"
+echo "  • Pull Docker images"
+echo "  • Configure networking, DNS, and SSL"
+echo "  • Deploy and start the selected services"
+echo
+echo "This may take several minutes depending on your server."
+echo
+echo "☕ Grab a coffee — press ENTER when you're ready."
+echo "────────────────────────────────────────────────────────"
+read -p ""
 
 source "$ROOT_DIR/core/00-base.sh"
 source "$ROOT_DIR/core/01-network.sh"
@@ -76,6 +114,7 @@ source "$ROOT_DIR/core/02-traefik.sh"
 [[ "$INSTALL_SEEDBOX" =~ ^[Yy]$ ]]   && source "$ROOT_DIR/services/seedbox.sh"
 [[ "$INSTALL_IMMICH" =~ ^[Yy]$ ]]    && source "$ROOT_DIR/services/immich.sh"
 [[ "$INSTALL_MAIL" =~ ^[Yy]$ ]]      && source "$ROOT_DIR/services/mail.sh"
+[[ "$INSTALL_WIREGUARD" =~ ^[Yy]$ ]] && source "$ROOT_DIR/services/wireguard.sh"
 
 if [[ "$INSTALL_HONEYPOT" =~ ^[Yy]$ ]]; then
   mkdir -p /root/apps/cowrie/var/lib/cowrie
