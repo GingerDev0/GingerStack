@@ -7,6 +7,7 @@ PHP_CONF_DIR="$PHP_DIR/conf.d"
 
 SRC_INDEX="$ROOT_DIR/lib/index.php"
 SRC_LOGO="$ROOT_DIR/lib/logo.png"
+SRC_FAVICON="$ROOT_DIR/lib/favicon.ico"
 
 # -------------------------------------------------------------------
 # Directory setup
@@ -18,6 +19,7 @@ mkdir -p "$WWW_DIR" "$PHP_CONF_DIR"
 # -------------------------------------------------------------------
 [[ ! -f "$WWW_DIR/index.php" ]] && cp "$SRC_INDEX" "$WWW_DIR/index.php"
 [[ -f "$SRC_LOGO" && ! -f "$WWW_DIR/logo.png" ]] && cp "$SRC_LOGO" "$WWW_DIR/logo.png"
+[[ -f "$SRC_FAVICON" && ! -f "$WWW_DIR/favicon.ico" ]] && cp "$SRC_FAVICON" "$WWW_DIR/favicon.ico"
 
 # -------------------------------------------------------------------
 # Default PHP configuration (custom.ini)
