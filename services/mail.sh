@@ -17,7 +17,12 @@ docker run -d \
   -l "traefik.http.routers.mailadmin.rule=Host(\"mailadmin.$ZONE_NAME\")" \
   -l "traefik.http.routers.mailadmin.entrypoints=websecure" \
   -l "traefik.http.routers.mailadmin.tls.certresolver=cloudflare" \
-  -l "traefik.http.routers.mailadmin.middlewares=login-ratelimit@file" \
+  -l "traefik.http.routers.mailadmin.middlewares=ui-ratelimit@file" \
+  -l "traefik.http.routers.mailadmin-login.rule=Host(\"mailadmin.$ZONE_NAME\") && PathPrefix(\"/login\")" \
+  -l "traefik.http.routers.mailadmin-login.entrypoints=websecure" \
+  -l "traefik.http.routers.mailadmin-login.tls.certresolver=cloudflare" \
+  -l "traefik.http.routers.mailadmin-login.middlewares=login-ratelimit@file" \
+  -l "traefik.http.routers.mailadmin-login.service=mailadmin" \
   -l "traefik.http.services.mailadmin.loadbalancer.server.port=80" \
   analogic/poste.io
 
@@ -37,6 +42,11 @@ docker run -d \
   -l "traefik.http.routers.roundcube.rule=Host(\"webmail.$ZONE_NAME\")" \
   -l "traefik.http.routers.roundcube.entrypoints=websecure" \
   -l "traefik.http.routers.roundcube.tls.certresolver=cloudflare" \
-  -l "traefik.http.routers.roundcube.middlewares=login-ratelimit@file" \
+  -l "traefik.http.routers.roundcube.middlewares=ui-ratelimit@file" \
+  -l "traefik.http.routers.roundcube-login.rule=Host(\"webmail.$ZONE_NAME\") && PathPrefix(\"/?_task=login\")" \
+  -l "traefik.http.routers.roundcube-login.entrypoints=websecure" \
+  -l "traefik.http.routers.roundcube-login.tls.certresolver=cloudflare" \
+  -l "traefik.http.routers.roundcube-login.middlewares=login-ratelimit@file" \
+  -l "traefik.http.routers.roundcube-login.service=roundcube" \
   -l "traefik.http.services.roundcube.loadbalancer.server.port=80" \
   roundcube/roundcubemail

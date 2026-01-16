@@ -62,10 +62,18 @@ EOF
 cat > "$TRAEFIK_DYNAMIC" <<'EOF'
 http:
   middlewares:
+
+    # 🔐 Strict for login endpoints
     login-ratelimit:
       rateLimit:
-        average: 5
-        burst: 10
+        average: 3
+        burst: 5
+
+    # 🌐 Relaxed for UI + assets
+    ui-ratelimit:
+      rateLimit:
+        average: 30
+        burst: 60
 EOF
 
 # --------------------------------------------------
@@ -101,4 +109,4 @@ networks:
     external: true
 EOF
 
-cd "$TRAEFIK_DIR" && dc up -d
+cd "$TRAEFIK_DIR" && docker compose up -d

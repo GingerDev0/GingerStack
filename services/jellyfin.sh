@@ -10,6 +10,11 @@ docker run -d \
   -l "traefik.http.routers.jellyfin.rule=Host(\"jellyfin.$ZONE_NAME\")" \
   -l "traefik.http.routers.jellyfin.entrypoints=websecure" \
   -l "traefik.http.routers.jellyfin.tls.certresolver=cloudflare" \
-  -l "traefik.http.routers.jellyfin.middlewares=login-ratelimit@file" \
+  -l "traefik.http.routers.jellyfin.middlewares=ui-ratelimit@file" \
+  -l "traefik.http.routers.jellyfin-login.rule=Host(\"jellyfin.$ZONE_NAME\") && PathPrefix(\"/Users/Authenticate\")" \
+  -l "traefik.http.routers.jellyfin-login.entrypoints=websecure" \
+  -l "traefik.http.routers.jellyfin-login.tls.certresolver=cloudflare" \
+  -l "traefik.http.routers.jellyfin-login.middlewares=login-ratelimit@file" \
+  -l "traefik.http.routers.jellyfin-login.service=jellyfin" \
   -l "traefik.http.services.jellyfin.loadbalancer.server.port=8096" \
   jellyfin/jellyfin

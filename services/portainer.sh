@@ -12,6 +12,11 @@ docker run -d \
   -l "traefik.http.routers.portainer.rule=Host(\"portainer.$ZONE_NAME\")" \
   -l "traefik.http.routers.portainer.entrypoints=websecure" \
   -l "traefik.http.routers.portainer.tls.certresolver=cloudflare" \
-  -l "traefik.http.routers.portainer.middlewares=login-ratelimit@file" \
+  -l "traefik.http.routers.portainer.middlewares=ui-ratelimit@file" \
+  -l "traefik.http.routers.portainer-login.rule=Host(\"portainer.$ZONE_NAME\") && PathPrefix(\"/api/auth\")" \
+  -l "traefik.http.routers.portainer-login.entrypoints=websecure" \
+  -l "traefik.http.routers.portainer-login.tls.certresolver=cloudflare" \
+  -l "traefik.http.routers.portainer-login.middlewares=login-ratelimit@file" \
+  -l "traefik.http.routers.portainer-login.service=portainer" \
   -l "traefik.http.services.portainer.loadbalancer.server.port=9000" \
   portainer/portainer-ce

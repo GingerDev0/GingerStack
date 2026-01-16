@@ -40,12 +40,16 @@ services:
       - "traefik.http.routers.immich.rule=Host(\"immich.$ZONE_NAME\")"
       - "traefik.http.routers.immich.entrypoints=websecure"
       - "traefik.http.routers.immich.tls.certresolver=cloudflare"
-      - "traefik.http.routers.immich.middlewares=login-ratelimit@file"
+      - "traefik.http.routers.immich.middlewares=ui-ratelimit@file"
       - "traefik.http.services.immich.loadbalancer.server.port=3001"
-
+      - "traefik.http.routers.immich-login.rule=Host(\"immich.$ZONE_NAME\") && PathPrefix(\"/api/auth\")"
+      - "traefik.http.routers.immich-login.entrypoints=websecure"
+      - "traefik.http.routers.immich-login.tls.certresolver=cloudflare"
+      - "traefik.http.routers.immich-login.middlewares=login-ratelimit@file"
+      - "traefik.http.routers.immich-login.service=immich"
 networks:
   proxy:
     external: true
 EOF
 
-cd /root/apps/immich && dc up -d
+cd /root/apps/immich && docker compose up -d
