@@ -9,10 +9,7 @@ docker run -d \
   -l "traefik.http.routers.seedbox.rule=Host(\"seedbox.$ZONE_NAME\")" \
   -l "traefik.http.routers.seedbox.entrypoints=websecure" \
   -l "traefik.http.routers.seedbox.tls.certresolver=cloudflare" \
-
-  # 🔐 Rate-limit middleware
   -l "traefik.http.routers.seedbox.middlewares=login-ratelimit@file" \
-
   -l "traefik.http.services.seedbox.loadbalancer.server.port=8080" \
   lscr.io/linuxserver/qbittorrent
 

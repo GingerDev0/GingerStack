@@ -17,10 +17,7 @@ docker run -d \
   -l "traefik.http.routers.mailadmin.rule=Host(\"mailadmin.$ZONE_NAME\")" \
   -l "traefik.http.routers.mailadmin.entrypoints=websecure" \
   -l "traefik.http.routers.mailadmin.tls.certresolver=cloudflare" \
-
-  # 🔐 Rate-limit middleware
   -l "traefik.http.routers.mailadmin.middlewares=login-ratelimit@file" \
-
   -l "traefik.http.services.mailadmin.loadbalancer.server.port=80" \
   analogic/poste.io
 
@@ -40,9 +37,6 @@ docker run -d \
   -l "traefik.http.routers.roundcube.rule=Host(\"webmail.$ZONE_NAME\")" \
   -l "traefik.http.routers.roundcube.entrypoints=websecure" \
   -l "traefik.http.routers.roundcube.tls.certresolver=cloudflare" \
-
-  # 🔐 Rate-limit middleware
   -l "traefik.http.routers.roundcube.middlewares=login-ratelimit@file" \
-
   -l "traefik.http.services.roundcube.loadbalancer.server.port=80" \
   roundcube/roundcubemail

@@ -29,10 +29,7 @@ services:
       - "traefik.http.routers.immich.rule=Host(\"immich.$ZONE_NAME\")"
       - "traefik.http.routers.immich.entrypoints=websecure"
       - "traefik.http.routers.immich.tls.certresolver=cloudflare"
-
-      # 🔐 Rate-limit middleware
       - "traefik.http.routers.immich.middlewares=login-ratelimit@file"
-
       - "traefik.http.services.immich.loadbalancer.server.port=3001"
 networks:
   proxy:

@@ -12,9 +12,6 @@ docker run -d \
   -l "traefik.http.routers.portainer.rule=Host(\"portainer.$ZONE_NAME\")" \
   -l "traefik.http.routers.portainer.entrypoints=websecure" \
   -l "traefik.http.routers.portainer.tls.certresolver=cloudflare" \
-
-  # 🔐 Rate-limit middleware
   -l "traefik.http.routers.portainer.middlewares=login-ratelimit@file" \
-
   -l "traefik.http.services.portainer.loadbalancer.server.port=9000" \
   portainer/portainer-ce
