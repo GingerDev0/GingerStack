@@ -20,6 +20,64 @@ Built for:
 - 🛡️ Built-in brute-force protection via Traefik rate-limit middleware
 - 🎯 SSH Honeypot with Cowrie for early attack detection
 - 🛡️ WireGuard VPN for secure remote access
+- 🔒 Single-instance installer locking with rich diagnostics
+- 🧾 Full install logging with timestamped log files
+
+---
+
+## 🧱 Installer Safety & Reliability
+
+GingerStack includes **production-grade installer safeguards** to ensure safe, repeatable runs.
+
+### 🔒 Single-instance locking
+
+The installer uses a robust `flock`-based locking system (`lib/lock.sh`) to prevent multiple installs from running at the same time.
+
+The lockfile records:
+- PID and parent PID
+- User and hostname
+- Start timestamp
+- Script path and working directory
+- Bash version
+- Live progress updates
+
+If another installer is already running, GingerStack will:
+- Refuse to start
+- Show who is holding the lock
+- Detect and warn about stale locks
+
+This prevents race conditions, partial installs, and corrupted state.
+
+### 🧾 Full install logging
+
+Every installer run generates a full log file:
+
+```
+logs/install-YYYYMMDD-HHMMSS.log
+```
+
+- All stdout and stderr are captured
+- Output is still streamed to the terminal
+- Logs survive crashes and reboots
+- The active logfile path is recorded in the lockfile
+
+This makes debugging, auditing, and post-mortem analysis trivial.
+
+### 📁 Automatic directory bootstrap
+
+On startup, the installer ensures all required directories exist and are writable:
+
+- `lib/`
+- `logs/`
+- runtime directories created by services
+
+Missing directories are automatically created and explicitly set to:
+
+```
+chmod 0777
+```
+
+This avoids permission issues on fresh servers, containers, bind mounts, and CI environments.
 
 ---
 
@@ -49,11 +107,13 @@ chmod +x install.sh
 
 The installer will:
 
-1. Ask which services you want  
-2. Prompt for a Cloudflare API token  
-3. Configure DNS records automatically  
-4. Install Docker + Compose if needed  
-5. Deploy Traefik and selected services  
+1. Acquire an exclusive install lock  
+2. Ask which services you want  
+3. Prompt for a Cloudflare API token  
+4. Configure DNS records automatically  
+5. Install Docker + Compose if needed  
+6. Deploy Traefik and selected services  
+7. Write full logs to `logs/`
 
 ---
 
@@ -63,9 +123,11 @@ The installer will:
 .
 ├─ install.sh          # main entrypoint
 ├─ lib/                # shared helpers
+│  ├─ lock.sh          # installer locking + metadata
 │  ├─ logging.sh
 │  ├─ docker.sh
 │  └─ cloudflare.sh
+├─ logs/               # install logs
 ├─ core/               # base system + proxy + dns
 │  ├─ 00-base.sh
 │  ├─ 01-network.sh
@@ -77,8 +139,8 @@ The installer will:
    ├─ jellyfin.sh
    ├─ seedbox.sh
    ├─ immich.sh
-   └─ mail.sh
-   └─ honeypot.sh
+   ├─ mail.sh
+   ├─ honeypot.sh
    └─ wireguard.sh
 ```
 
@@ -103,11 +165,11 @@ docker logs cowrie
 
 ## 🔐 Security Notes
 
-- No secrets are stored in the repo.  
-- Cloudflare token is requested at runtime.  
-- TLS certificates are stored locally and ignored by git.  
-- **All login endpoints are protected by Traefik rate-limiting middleware** to reduce dictionary and brute-force attacks.  
-- Safe to publish this repo publicly.  
+- No secrets are stored in the repo  
+- Cloudflare token is requested at runtime  
+- TLS certificates are stored locally and ignored by git  
+- All login endpoints are protected by Traefik rate-limiting middleware  
+- Installer locking prevents concurrent destructive operations
 
 ---
 
@@ -144,6 +206,7 @@ GingerStack is built around:
 - **Reproducibility over magic**  
 - **Git over zip files**  
 - **Security at the edge** with Traefik middleware  
+- **Deterministic installs** with locks and logs
 
 ---
 
@@ -157,6 +220,7 @@ Guidelines:
 - No secrets in commits  
 - Keep scripts idempotent  
 - Prefer docker-compose for multi-container stacks  
+- Avoid hidden state; log everything
 
 ---
 
@@ -187,3 +251,4 @@ MIT — use it, fork it, ship it.
 ---
 
 Built with ☕ and Docker by **GingerDev0**
+
