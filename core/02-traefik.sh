@@ -13,6 +13,12 @@ if [ -d "$TRAEFIK_FILE" ]; then
   rm -rf "$TRAEFIK_FILE"
 fi
 
+# 🔥 FIX: if dynamic.yml exists as a directory, remove it
+if [ -d "$TRAEFIK_DYNAMIC" ]; then
+  warn "$TRAEFIK_DYNAMIC is a directory — removing it"
+  rm -rf "$TRAEFIK_DYNAMIC"
+fi
+
 mkdir -p "$TRAEFIK_DIR/letsencrypt"
 touch "$TRAEFIK_DIR/letsencrypt/acme.json"
 chmod 600 "$TRAEFIK_DIR/letsencrypt/acme.json"
