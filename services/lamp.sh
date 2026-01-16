@@ -13,6 +13,9 @@ services:
       - "traefik.http.routers.lamp.entrypoints=websecure"
       - "traefik.http.routers.lamp.tls.certresolver=cloudflare"
 
+      # 🔐 Rate-limit middleware
+      - "traefik.http.routers.lamp.middlewares=login-ratelimit@file"
+
   db:
     image: mysql:8
     restart: unless-stopped
@@ -31,6 +34,10 @@ services:
       - "traefik.http.routers.pma.rule=Host(\"pma.$ZONE_NAME\")"
       - "traefik.http.routers.pma.entrypoints=websecure"
       - "traefik.http.routers.pma.tls.certresolver=cloudflare"
+
+      # 🔐 Rate-limit middleware
+      - "traefik.http.routers.pma.middlewares=login-ratelimit@file"
+
       - "traefik.http.services.pma.loadbalancer.server.port=80"
 networks:
   proxy:

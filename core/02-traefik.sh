@@ -2,6 +2,7 @@ info "Installing Traefik..."
 
 TRAEFIK_DIR="/root/apps/traefik"
 TRAEFIK_FILE="$TRAEFIK_DIR/traefik.yml"
+TRAEFIK_DYNAMIC="$TRAEFIK_DIR/dynamic.yml"
 
 # ensure base dir
 mkdir -p "$TRAEFIK_DIR"
@@ -16,6 +17,9 @@ mkdir -p "$TRAEFIK_DIR/letsencrypt"
 touch "$TRAEFIK_DIR/letsencrypt/acme.json"
 chmod 600 "$TRAEFIK_DIR/letsencrypt/acme.json"
 
+# --------------------------------------------------
+# Traefik static config
+# --------------------------------------------------
 cat > "$TRAEFIK_FILE" <<EOF
 entryPoints:
   web:
@@ -27,9 +31,13 @@ entryPoints:
           scheme: https
   websecure:
     address: ":443"
+
 providers:
   docker:
     exposedByDefault: false
+  file:
+    filename: /dynamic.yml
+
 certificatesResolvers:
   cloudflare:
     acme:
@@ -37,10 +45,26 @@ certificatesResolvers:
       storage: /letsencrypt/acme.json
       dnsChallenge:
         provider: cloudflare
+
 api:
   dashboard: true
 EOF
 
+# --------------------------------------------------
+# 🔐 Dynamic middleware config (rate limiting)
+# --------------------------------------------------
+cat > "$TRAEFIK_DYNAMIC" <<'EOF'
+http:
+  middlewares:
+    login-ratelimit:
+      rateLimit:
+        average: 5
+        burst: 10
+EOF
+
+# --------------------------------------------------
+# Docker Compose
+# --------------------------------------------------
 cat > "$TRAEFIK_DIR/docker-compose.yml" <<EOF
 services:
   traefik:
@@ -54,6 +78,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./traefik.yml:/traefik.yml:ro
+      - ./dynamic.yml:/dynamic.yml:ro
       - ./letsencrypt:/letsencrypt
     command:
       - "--configFile=/traefik.yml"

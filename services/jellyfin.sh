@@ -10,5 +10,6 @@ docker run -d \
   -l "traefik.http.routers.jellyfin.rule=Host(\"jellyfin.$ZONE_NAME\")" \
   -l "traefik.http.routers.jellyfin.entrypoints=websecure" \
   -l "traefik.http.routers.jellyfin.tls.certresolver=cloudflare" \
+  -l "traefik.http.routers.jellyfin.middlewares=login-ratelimit@file" \
   -l "traefik.http.services.jellyfin.loadbalancer.server.port=8096" \
   jellyfin/jellyfin
