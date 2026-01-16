@@ -7,7 +7,52 @@ command -v jq >/dev/null 2>&1 || { echo "ERROR: jq is required"; exit 1; }
 
 ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
+# --------------------------------------------------
+# Load / bootstrap .env
+# --------------------------------------------------
+ENV_FILE="$ROOT_DIR/.env"
+
+if [[ ! -f "$ENV_FILE" ]]; then
+  cat > "$ENV_FILE" <<'EOF'
+# GingerStack environment configuration
+# ------------------------------------
+# Cloudflare API Token
+# Required scopes:
+#   - Zone:Read
+#   - DNS:Edit
+CF_TOKEN=PASTE_YOUR_CLOUDFLARE_API_TOKEN_HERE
+EOF
+
+  chmod 600 "$ENV_FILE"
+
+  source "$ROOT_DIR/lib/logging.sh"
+
+  warn ".env file was not found and has been created:"
+  warn "  $ENV_FILE"
+  warn "Edit this file and insert your Cloudflare API token."
+  warn "Then re-run the installer."
+
+  exit 1
+fi
+
+set -a
+source "$ENV_FILE"
+set +a
+
+# --------------------------------------------------
+# Validate required env vars
+# --------------------------------------------------
 source "$ROOT_DIR/lib/logging.sh"
+
+[[ -z "$CF_TOKEN" || "$CF_TOKEN" == "PASTE_YOUR_CLOUDFLARE_API_TOKEN_HERE" ]] && {
+  err "CF_TOKEN is not set or still contains the placeholder"
+  err "Edit .env and add your real Cloudflare API token"
+  exit 1
+}
+
+# --------------------------------------------------
+# Source libraries
+# --------------------------------------------------
 source "$ROOT_DIR/lib/docker.sh"
 source "$ROOT_DIR/lib/cloudflare.sh"
 
@@ -28,11 +73,10 @@ EOF
 read -p "Install LAMP stack? (y/n): " INSTALL_LAMP
 
 # --------------------------------------------------
-# LAMP-specific options (only if enabled)
+# LAMP-specific options
 # --------------------------------------------------
 if [[ "$INSTALL_LAMP" =~ ^[Yy]$ ]]; then
 
-  # Detect available PHP versions (stable apache tags)
   mapfile -t PHP_VERSIONS < <(
     curl -s "https://registry.hub.docker.com/v2/repositories/library/php/tags?page_size=100" |
       jq -r '.results[].name' |
@@ -42,7 +86,6 @@ if [[ "$INSTALL_LAMP" =~ ^[Yy]$ ]]; then
       uniq
   )
 
-  # Fallback if Docker Hub is unreachable
   if [[ ${#PHP_VERSIONS[@]} -eq 0 ]]; then
     warn "Could not fetch PHP versions — using safe defaults"
     PHP_VERSIONS=(8.3 8.2 8.1)
@@ -54,11 +97,7 @@ if [[ "$INSTALL_LAMP" =~ ^[Yy]$ ]]; then
   echo "Available PHP versions:"
   i=1
   for v in "${PHP_VERSIONS[@]}"; do
-    if [[ "$v" == "$LATEST_PHP" ]]; then
-      echo "  [$i] $v (latest stable)"
-    else
-      echo "  [$i] $v"
-    fi
+    [[ "$v" == "$LATEST_PHP" ]] && echo "  [$i] $v (latest stable)" || echo "  [$i] $v"
     ((i++))
   done
 
@@ -72,7 +111,6 @@ if [[ "$INSTALL_LAMP" =~ ^[Yy]$ ]]; then
 
   ok "Using PHP $PHP_VER"
 
-  # MySQL root password
   read -s -p "MySQL root password: " MYSQL_ROOT_PASS; echo
   read -s -p "Confirm MySQL root password: " MYSQL_ROOT_PASS2; echo
 
@@ -90,17 +128,16 @@ read -p "Install Mail Server + Webmail? (y/n): " INSTALL_MAIL
 read -p "Install WireGuard VPN? (y/n): " INSTALL_WIREGUARD
 read -p "Install SSH Honeypot (Cowrie)? (y/n): " INSTALL_HONEYPOT
 
-echo
-echo "Cloudflare API Token Required"
-echo
-read -p "Paste Cloudflare API token: " CF_TOKEN
-export CF_TOKEN
-
+# --------------------------------------------------
+# Cloudflare zone selection
+# --------------------------------------------------
 CF_API="https://api.cloudflare.com/client/v4"
-ZONES_JSON=$(curl -s "$CF_API/zones" -H "Authorization: Bearer $CF_TOKEN")
-ZONE_COUNT=$(echo "$ZONES_JSON" | jq '.result | length')
 
-(( ZONE_COUNT == 0 )) && err "No zones found" && exit 1
+ZONES_JSON=$(curl -s "$CF_API/zones" \
+  -H "Authorization: Bearer $CF_TOKEN")
+
+ZONE_COUNT=$(echo "$ZONES_JSON" | jq '.result | length')
+(( ZONE_COUNT == 0 )) && err "No Cloudflare zones found" && exit 1
 
 i=1
 mapfile -t ZONE_NAMES < <(echo "$ZONES_JSON" | jq -r '.result[].name')
@@ -120,7 +157,7 @@ export ZONE_ID="${ZONE_IDS[$INDEX]}"
 ok "Using zone: $ZONE_NAME"
 
 # --------------------------------------------------
-# Pre-install pause + selected services summary
+# Summary
 # --------------------------------------------------
 echo
 echo "────────────────────────────────────────────────────────"
@@ -146,17 +183,21 @@ echo "  • Pull Docker images"
 echo "  • Configure networking, DNS, and SSL"
 echo "  • Deploy and start the selected services"
 echo
-echo "This may take several minutes depending on your server."
-echo
 echo "☕ Grab a coffee — press ENTER when you're ready."
 echo "────────────────────────────────────────────────────────"
 read -p ""
 
+# --------------------------------------------------
+# Core
+# --------------------------------------------------
 source "$ROOT_DIR/core/00-base.sh"
 source "$ROOT_DIR/core/01-network.sh"
 source "$ROOT_DIR/core/03-dns.sh"
 source "$ROOT_DIR/core/02-traefik.sh"
 
+# --------------------------------------------------
+# Services
+# --------------------------------------------------
 [[ "$INSTALL_PORTAINER" =~ ^[Yy]$ ]] && source "$ROOT_DIR/services/portainer.sh"
 [[ "$INSTALL_LAMP" =~ ^[Yy]$ ]]      && source "$ROOT_DIR/services/lamp.sh"
 [[ "$INSTALL_JELLYFIN" =~ ^[Yy]$ ]]  && source "$ROOT_DIR/services/jellyfin.sh"
