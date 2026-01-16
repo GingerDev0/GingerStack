@@ -14,4 +14,8 @@ docker run -d \
 
 sleep 10
 QB_LINE=$(docker logs seedbox 2>&1 | grep -i "temporary password" | tail -n 1 || true)
-[[ -n "$QB_LINE" ]] && echo "$QB_LINE"
+
+if [[ -n "$QB_LINE" ]]; then
+  SEEDBOX_PASS=$(echo "$QB_LINE" | sed 's/.*password is //')
+  export SEEDBOX_PASS
+fi
