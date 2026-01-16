@@ -1,10 +1,14 @@
-info "Installing qBittorrent..."
+ok "Installing qBittorrent..."
+
 docker rm -f seedbox >/dev/null 2>&1 || true
 
 docker run -d \
   --name seedbox \
   --restart unless-stopped \
   --network proxy \
+  -e PUID=0 \
+  -e PGID=0 \
+  -e UMASK=022 \
   -v /root/downloads:/downloads \
   -l "traefik.enable=true" \
   -l "traefik.http.routers.seedbox.rule=Host(\"seedbox.$ZONE_NAME\")" \

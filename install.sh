@@ -23,6 +23,26 @@ for dir in "${REQUIRED_DIRS[@]}"; do
 done
 
 # --------------------------------------------------
+# Shared media directories (seedbox + jellyfin)
+# --------------------------------------------------
+MEDIA_ROOT="/root/downloads"
+
+MEDIA_DIRS=(
+  "$MEDIA_ROOT"
+  "$MEDIA_ROOT/movies"
+  "$MEDIA_ROOT/tv"
+)
+
+for dir in "${MEDIA_DIRS[@]}"; do
+  if [[ ! -d "$dir" ]]; then
+    mkdir -p "$dir"
+  fi
+done
+
+# Safe, readable defaults for all containers
+chmod -R 755 "$MEDIA_ROOT"
+
+# --------------------------------------------------
 # Logging
 # --------------------------------------------------
 LOG_DIR="$ROOT_DIR/logs"

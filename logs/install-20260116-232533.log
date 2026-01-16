@@ -1,0 +1,9 @@
+────────────────────────────────────────
+GingerStack Installer
+Started : 2026-01-16T23:25:33+01:00
+Logfile : /root/GingerStack/logs/install-20260116-232533.log
+────────────────────────────────────────
+[!] .env file was not found and has been created:
+[!]   /root/GingerStack/.env
+[!] Edit this file and insert your Cloudflare API token.
+[!] Then re-run the installer.

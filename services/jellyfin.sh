@@ -1,11 +1,22 @@
-info "Installing Jellyfin..."
+#!/usr/bin/env bash
+set -e
+
+# Use ok instead of info to avoid menu-context errors
+ok "Installing Jellyfin..."
+
+# Remove existing container if present
 docker rm -f jellyfin >/dev/null 2>&1 || true
+
 docker run -d \
   --name jellyfin \
   --restart unless-stopped \
   --network proxy \
+  -e PUID=0 \
+  -e PGID=0 \
+  -e UMASK=022 \
   -v /root/apps/jellyfin:/config \
-  -v /media:/media \
+  -v /root/downloads/movies:/media/movies:ro \
+  -v /root/downloads/tv:/media/tv:ro \
   -l "traefik.enable=true" \
   -l "traefik.http.routers.jellyfin.rule=Host(\"jellyfin.$ZONE_NAME\")" \
   -l "traefik.http.routers.jellyfin.entrypoints=websecure" \
@@ -18,3 +29,5 @@ docker run -d \
   -l "traefik.http.routers.jellyfin-login.service=jellyfin" \
   -l "traefik.http.services.jellyfin.loadbalancer.server.port=8096" \
   jellyfin/jellyfin
+
+ok "Jellyfin container started"
