@@ -1,0 +1,163 @@
+# GingerStack
+
+A modular, self-hosted server stack installer with automatic DNS, SSL, and container management.
+
+Built for:
+- Docker + Docker Compose  
+- Traefik reverse proxy  
+- Cloudflare DNS automation  
+- Clean, re-runnable service modules  
+
+---
+
+## ✨ Features
+
+- 🔐 Automatic HTTPS via Traefik + Cloudflare DNS challenge  
+- 🧩 Modular architecture (one service = one file)  
+- 🔁 Safe to re-run individual services  
+- 🐳 Docker-first, no host pollution  
+- 🚀 Git-friendly (no secrets committed)  
+
+---
+
+## 📦 Included Services
+
+You can enable any of these during install:
+
+- **LAMP Stack** — Apache + PHP + MySQL  
+- **Portainer** — Docker management UI  
+- **Jellyfin** — Media streaming server  
+- **qBittorrent** — Seedbox / download manager  
+- **Immich** — Photo & video backup platform  
+- **Mail Stack** — poste.io + Roundcube webmail  
+
+---
+
+## ⚡ Quick Start
+
+```bash
+git clone https://github.com/GingerDev0/GingerStack.git
+cd GingerStack
+chmod +x install.sh
+./install.sh
+```
+
+The installer will:
+
+1. Ask which services you want  
+2. Prompt for a Cloudflare API token  
+3. Configure DNS records automatically  
+4. Install Docker + Compose if needed  
+5. Deploy Traefik and selected services  
+
+---
+
+## 📁 Project Structure
+
+```
+.
+├─ install.sh          # main entrypoint
+├─ lib/                # shared helpers
+│  ├─ logging.sh
+│  ├─ docker.sh
+│  └─ cloudflare.sh
+├─ core/               # base system + proxy + dns
+│  ├─ 00-base.sh
+│  ├─ 01-network.sh
+│  ├─ 02-traefik.sh
+│  └─ 03-dns.sh
+└─ services/           # optional services
+   ├─ lamp.sh
+   ├─ portainer.sh
+   ├─ jellyfin.sh
+   ├─ seedbox.sh
+   ├─ immich.sh
+   └─ mail.sh
+```
+
+---
+
+## 🔐 Security Notes
+
+- No secrets are stored in the repo.  
+- Cloudflare token is requested at runtime.  
+- TLS certificates are stored locally and ignored by git.  
+- Safe to publish this repo publicly.  
+
+---
+
+## 🔁 Re-running Services
+
+You can re-run any service at any time:
+
+```bash
+bash services/jellyfin.sh
+bash services/portainer.sh
+bash services/lamp.sh
+```
+
+You do **not** need to rerun the whole installer.
+
+---
+
+## 🛠 Requirements
+
+- Ubuntu / Debian-based server  
+- Root access  
+- A domain using Cloudflare DNS  
+- Cloudflare API Token with:  
+  - **Zone → DNS → Edit**
+
+---
+
+## 🧠 Philosophy
+
+GingerStack is built around:
+
+- **Modularity over monoliths**  
+- **Containers over host installs**  
+- **Reproducibility over magic**  
+- **Git over zip files**  
+
+---
+
+## 🤝 Contributing
+
+Pull requests are welcome.
+
+Guidelines:
+
+- One service per file in `services/`  
+- No secrets in commits  
+- Keep scripts idempotent  
+- Prefer docker-compose for multi-container stacks  
+
+---
+
+## 🧪 Development Workflow
+
+Typical workflow for maintainers:
+
+```bash
+git pull
+bash services/jellyfin.sh
+```
+
+or
+
+```bash
+git pull
+./install.sh
+```
+
+Changes are immediately reflected without reinstalling the system.
+
+---
+
+## 📜 License
+
+MIT — use it, fork it, ship it.
+
+---
+
+Built with ☕ and Docker by **GingerDev0**
