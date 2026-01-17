@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 [ -z "$BASH_VERSION" ] && { echo "ERROR: Run with bash"; exit 1; }
+
 set -e
 trap 'err "Script exited at line $LINENO"' ERR
 
@@ -16,9 +17,7 @@ REQUIRED_DIRS=(
 )
 
 for dir in "${REQUIRED_DIRS[@]}"; do
-  if [[ ! -d "$dir" ]]; then
-    mkdir -p "$dir"
-  fi
+  [[ -d "$dir" ]] || mkdir -p "$dir"
   chmod 0777 "$dir"
 done
 
@@ -34,26 +33,17 @@ MEDIA_DIRS=(
 )
 
 for dir in "${MEDIA_DIRS[@]}"; do
-  if [[ ! -d "$dir" ]]; then
-    mkdir -p "$dir"
-  fi
+  [[ -d "$dir" ]] || mkdir -p "$dir"
 done
 
-# Safe, readable defaults for all containers
 chmod -R 755 "$MEDIA_ROOT"
 
 # --------------------------------------------------
-# Logging
+# Banner
 # --------------------------------------------------
-LOG_DIR="$ROOT_DIR/logs"
-LOG_FILE="$LOG_DIR/install-$(date +%Y%m%d-%H%M%S).log"
-
-exec > >(tee -a "$LOG_FILE") 2>&1
-
 echo "────────────────────────────────────────"
 echo "GingerStack Installer"
 echo "Started : $(date -Is)"
-echo "Logfile : $LOG_FILE"
 echo "────────────────────────────────────────"
 
 # --------------------------------------------------
@@ -62,7 +52,6 @@ echo "────────────────────────�
 source "$ROOT_DIR/lib/lock.sh"
 lock_init gingerstack-installer
 lock_update "Installer started"
-lock_update "Logfile: $LOG_FILE"
 
 # --------------------------------------------------
 # Load / bootstrap .env
@@ -72,23 +61,16 @@ ENV_FILE="$ROOT_DIR/.env"
 if [[ ! -f "$ENV_FILE" ]]; then
   cat >"$ENV_FILE" <<'EOF'
 # GingerStack environment configuration
-# ------------------------------------
-# Cloudflare API Token
-# Required scopes:
-#   - Zone:Read
-#   - DNS:Edit
 CF_TOKEN=PASTE_YOUR_CLOUDFLARE_API_TOKEN_HERE
 EOF
 
   chmod 600 "$ENV_FILE"
 
   source "$ROOT_DIR/lib/logging.sh"
-
   warn ".env file was not found and has been created:"
   warn "  $ENV_FILE"
   warn "Edit this file and insert your Cloudflare API token."
   warn "Then re-run the installer."
-
   exit 1
 fi
 
@@ -103,7 +85,6 @@ source "$ROOT_DIR/lib/logging.sh"
 
 [[ -z "$CF_TOKEN" || "$CF_TOKEN" == "PASTE_YOUR_CLOUDFLARE_API_TOKEN_HERE" ]] && {
   err "CF_TOKEN is not set or still contains the placeholder"
-  err "Edit .env and add your real Cloudflare API token"
   exit 1
 }
 
@@ -142,14 +123,10 @@ if [[ "$INSTALL_LAMP" =~ ^[Yy]$ ]]; then
       jq -r '.results[].name' |
       grep -E '^[0-9]+\.[0-9]+-apache$' |
       sed 's/-apache//' |
-      sort -V |
-      uniq
+      sort -V | uniq
   )
 
-  if [[ ${#PHP_VERSIONS[@]} -eq 0 ]]; then
-    warn "Could not fetch PHP versions — using safe defaults"
-    PHP_VERSIONS=(8.3 8.2 8.1)
-  fi
+  [[ ${#PHP_VERSIONS[@]} -eq 0 ]] && PHP_VERSIONS=(8.3 8.2 8.1)
 
   LATEST_PHP="${PHP_VERSIONS[-1]}"
 
@@ -162,12 +139,8 @@ if [[ "$INSTALL_LAMP" =~ ^[Yy]$ ]]; then
   done
 
   read -p "Choose PHP version [default: latest]: " PHP_CHOICE
-
-  if [[ -z "$PHP_CHOICE" ]]; then
-    PHP_VER="$LATEST_PHP"
-  else
-    PHP_VER="${PHP_VERSIONS[$((PHP_CHOICE-1))]}"
-  fi
+  PHP_VER="${PHP_CHOICE:+${PHP_VERSIONS[$((PHP_CHOICE-1))]}}"
+  PHP_VER="${PHP_VER:-$LATEST_PHP}"
 
   ok "Using PHP $PHP_VER"
   lock_update "PHP version selected: $PHP_VER"
@@ -188,6 +161,7 @@ read -p "Install Immich? (y/n): " INSTALL_IMMICH
 read -p "Install Mail Server + Webmail? (y/n): " INSTALL_MAIL
 read -p "Install WireGuard VPN? (y/n): " INSTALL_WIREGUARD
 read -p "Install SSH Honeypot (Cowrie)? (y/n): " INSTALL_HONEYPOT
+read -p "Install AI Stack (Ollama + OpenWebUI)? (y/n): " INSTALL_AI
 
 lock_update "Service selection complete"
 
@@ -195,25 +169,23 @@ lock_update "Service selection complete"
 # Cloudflare zone selection
 # --------------------------------------------------
 CF_API="https://api.cloudflare.com/client/v4"
-
-ZONES_JSON=$(curl -s "$CF_API/zones" \
-  -H "Authorization: Bearer $CF_TOKEN")
+ZONES_JSON=$(curl -s "$CF_API/zones" -H "Authorization: Bearer $CF_TOKEN")
 
 ZONE_COUNT=$(echo "$ZONES_JSON" | jq '.result | length')
 (( ZONE_COUNT == 0 )) && err "No Cloudflare zones found" && exit 1
 
-i=1
 mapfile -t ZONE_NAMES < <(echo "$ZONES_JSON" | jq -r '.result[].name')
 mapfile -t ZONE_IDS   < <(echo "$ZONES_JSON" | jq -r '.result[].id')
 
+i=1
 for z in "${ZONE_NAMES[@]}"; do
   echo " [$i] $z"
   ((i++))
 done
 
 read -p "Select zone number: " ZONE_CHOICE
-
 INDEX=$((ZONE_CHOICE-1))
+
 export ZONE_NAME="${ZONE_NAMES[$INDEX]}"
 export ZONE_ID="${ZONE_IDS[$INDEX]}"
 
@@ -226,23 +198,9 @@ lock_update "Cloudflare zone selected: $ZONE_NAME"
 echo
 echo "────────────────────────────────────────────────────────"
 echo "🚀 Ready to install GingerStack"
-echo
-echo "Domain:"
-echo "  • $ZONE_NAME"
-echo
-echo "Selected services:"
-[[ "$INSTALL_LAMP" =~ ^[Yy]$ ]]      && echo "  • LAMP stack (PHP $PHP_VER)"
-[[ "$INSTALL_PORTAINER" =~ ^[Yy]$ ]] && echo "  • Portainer"
-[[ "$INSTALL_JELLYFIN" =~ ^[Yy]$ ]]  && echo "  • Jellyfin"
-[[ "$INSTALL_SEEDBOX" =~ ^[Yy]$ ]]   && echo "  • Seedbox (qBittorrent)"
-[[ "$INSTALL_IMMICH" =~ ^[Yy]$ ]]    && echo "  • Immich"
-[[ "$INSTALL_MAIL" =~ ^[Yy]$ ]]      && echo "  • Mail server + Webmail"
-[[ "$INSTALL_WIREGUARD" =~ ^[Yy]$ ]] && echo "  • WireGuard VPN"
-[[ "$INSTALL_HONEYPOT" =~ ^[Yy]$ ]]  && echo "  • SSH Honeypot (Cowrie)"
-
-echo
-echo "☕ Grab a coffee — press ENTER when you're ready."
-read -p ""
+echo "Domain: $ZONE_NAME"
+echo "────────────────────────────────────────────────────────"
+read -p "Press ENTER to start installation..."
 
 lock_update "Installation started"
 
@@ -264,6 +222,7 @@ source "$ROOT_DIR/core/02-traefik.sh"
 [[ "$INSTALL_IMMICH" =~ ^[Yy]$ ]]    && source "$ROOT_DIR/services/immich.sh"
 [[ "$INSTALL_MAIL" =~ ^[Yy]$ ]]      && source "$ROOT_DIR/services/mail.sh"
 [[ "$INSTALL_WIREGUARD" =~ ^[Yy]$ ]] && source "$ROOT_DIR/services/wireguard.sh"
+[[ "$INSTALL_AI" =~ ^[Yy]$ ]]        && source "$ROOT_DIR/services/ollama.sh"
 
 if [[ "$INSTALL_HONEYPOT" =~ ^[Yy]$ ]]; then
   mkdir -p /root/apps/cowrie/var/lib/cowrie

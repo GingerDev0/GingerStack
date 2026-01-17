@@ -25,6 +25,12 @@ ensure_a "traefik"
 
 [[ "$INSTALL_JELLYFIN" =~ ^[Yy]$ ]] && ensure_a "jellyfin"
 
+# 🔹 OpenWebUI (public UI)
+[[ "$INSTALL_AI" =~ ^[Yy]$ ]] && ensure_a "ai"
+
+# 🔹 Ollama API (optional / internal)
+[[ "$INSTALL_AI" =~ ^[Yy]$ ]] && ensure_a "ollama"
+
 [[ "$INSTALL_SEEDBOX" =~ ^[Yy]$ ]] && ensure_a "seedbox"
 
 [[ "$INSTALL_IMMICH" =~ ^[Yy]$ ]] && ensure_a "immich"
