@@ -26,37 +26,6 @@ Built for:
 
 ---
 
-## 🧠 AI Stack (Ollama + OpenWebUI)
-
-GingerStack includes an **optional, fully integrated AI stack**:
-
-- **Ollama** — Local LLM runtime (internal-only, never exposed)
-- **OpenWebUI** — Secure web UI exposed via Traefik
-- **Automatic CPU/GPU detection**
-- **Automatic model pulling**
-- **CPU tuning (all cores, optimized threading)**
-- **Quantized models for fast CPU inference**
-- **HTTPS + rate-limited access via Traefik**
-- **Cloudflare DNS + TLS**
-
-Default behavior:
-- CPU systems pull optimized quantized models (e.g. `llama3.1:8b-instruct-q4_K_M`)
-- GPU systems pull full-precision models automatically
-- Models are immediately available in OpenWebUI after install
-
-Access:
-```
-https://ai.your-domain.tld
-```
-
-Data directories:
-```
-/root/apps/ollama
-/root/apps/openwebui
-```
-
----
-
 ## 🧱 Installer Safety & Reliability
 
 GingerStack includes **production-grade installer safeguards** to ensure safe, repeatable runs.
@@ -122,6 +91,37 @@ You can enable any of these during install:
 - **Cowrie Honeypot** — SSH attack detection and logging
 - **WireGuard VPN** — Secure remote access to internal services
 - **AI Stack** — Ollama + OpenWebUI (local LLMs)
+
+---
+
+## 🧠 AI Stack (Ollama + OpenWebUI)
+
+GingerStack includes an **optional, fully integrated AI stack**:
+
+- **Ollama** — Local LLM runtime (internal-only, never exposed)
+- **OpenWebUI** — Secure web UI exposed via Traefik
+- **Automatic CPU/GPU detection**
+- **Automatic model pulling**
+- **CPU tuning (all cores, optimized threading)**
+- **Quantized models for fast CPU inference**
+- **HTTPS + rate-limited access via Traefik**
+- **Cloudflare DNS + TLS**
+
+Default behavior:
+- CPU systems pull optimized quantized models (e.g. `llama3.1:8b-instruct-q4_K_M`)
+- GPU systems pull full-precision models automatically
+- Models are immediately available in OpenWebUI after install
+
+Access:
+```
+https://ai.your-domain.tld
+```
+
+Data directories:
+```
+/root/apps/ollama
+/root/apps/openwebui
+```
 
 ---
 
