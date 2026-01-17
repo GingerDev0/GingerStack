@@ -22,6 +22,38 @@ Built for:
 - 🛡️ WireGuard VPN for secure remote access
 - 🔒 Single-instance installer locking with rich diagnostics
 - 🧾 Full install logging with timestamped log files
+- 🤖 **AI Stack with Ollama + OpenWebUI (CPU/GPU auto-optimized)**
+
+---
+
+## 🧠 AI Stack (Ollama + OpenWebUI)
+
+GingerStack includes an **optional, fully integrated AI stack**:
+
+- **Ollama** — Local LLM runtime (internal-only, never exposed)
+- **OpenWebUI** — Secure web UI exposed via Traefik
+- **Automatic CPU/GPU detection**
+- **Automatic model pulling**
+- **CPU tuning (all cores, optimized threading)**
+- **Quantized models for fast CPU inference**
+- **HTTPS + rate-limited access via Traefik**
+- **Cloudflare DNS + TLS**
+
+Default behavior:
+- CPU systems pull optimized quantized models (e.g. `llama3.1:8b-instruct-q4_K_M`)
+- GPU systems pull full-precision models automatically
+- Models are immediately available in OpenWebUI after install
+
+Access:
+```
+https://ai.your-domain.tld
+```
+
+Data directories:
+```
+/root/apps/ollama
+/root/apps/openwebui
+```
 
 ---
 
@@ -61,8 +93,6 @@ logs/install-YYYYMMDD-HHMMSS.log
 - Logs survive crashes and reboots
 - The active logfile path is recorded in the lockfile
 
-This makes debugging, auditing, and post-mortem analysis trivial.
-
 ### 📁 Automatic directory bootstrap
 
 On startup, the installer ensures all required directories exist and are writable:
@@ -77,8 +107,6 @@ Missing directories are automatically created and explicitly set to:
 chmod 0777
 ```
 
-This avoids permission issues on fresh servers, containers, bind mounts, and CI environments.
-
 ---
 
 ## 📦 Included Services
@@ -92,7 +120,8 @@ You can enable any of these during install:
 - **Immich** — Photo & video backup platform  
 - **Mail Stack** — poste.io + Roundcube webmail
 - **Cowrie Honeypot** — SSH attack detection and logging
-- **Wireguard VPN** — Secure remote access to internal services
+- **WireGuard VPN** — Secure remote access to internal services
+- **AI Stack** — Ollama + OpenWebUI (local LLMs)
 
 ---
 
@@ -105,35 +134,17 @@ chmod +x install.sh
 ./install.sh
 ```
 
-The installer will:
-
-1. Acquire an exclusive install lock  
-2. Ask which services you want  
-3. Prompt for a Cloudflare API token  
-4. Configure DNS records automatically  
-5. Install Docker + Compose if needed  
-6. Deploy Traefik and selected services  
-7. Write full logs to `logs/`
-
 ---
 
 ## 📁 Project Structure
 
 ```
 .
-├─ install.sh          # main entrypoint
-├─ lib/                # shared helpers
-│  ├─ lock.sh          # installer locking + metadata
-│  ├─ logging.sh
-│  ├─ docker.sh
-│  └─ cloudflare.sh
-├─ logs/               # install logs
-├─ core/               # base system + proxy + dns
-│  ├─ 00-base.sh
-│  ├─ 01-network.sh
-│  ├─ 02-traefik.sh
-│  └─ 03-dns.sh
-└─ services/           # optional services
+├─ install.sh
+├─ lib/
+├─ logs/
+├─ core/
+└─ services/
    ├─ lamp.sh
    ├─ portainer.sh
    ├─ jellyfin.sh
@@ -141,24 +152,8 @@ The installer will:
    ├─ immich.sh
    ├─ mail.sh
    ├─ honeypot.sh
-   └─ wireguard.sh
-```
-
----
-
-## 🕵️ SSH Honeypot (Cowrie)
-
-GingerStack can deploy **Cowrie**, a production-grade SSH honeypot.
-
-- Cowrie listens on **port 22**  
-- Your real SSH runs on a **custom port you choose**  
-- Attackers hit the honeypot, not your real system  
-- All attempts are logged for analysis  
-
-View logs:
-
-```bash
-docker logs cowrie
+   ├─ wireguard.sh
+   └─ ollama.sh
 ```
 
 ---
@@ -169,78 +164,7 @@ docker logs cowrie
 - Cloudflare token is requested at runtime  
 - TLS certificates are stored locally and ignored by git  
 - All login endpoints are protected by Traefik rate-limiting middleware  
-- Installer locking prevents concurrent destructive operations
-
----
-
-## 🔁 Re-running Services
-
-You can re-run any service at any time:
-
-```bash
-bash services/jellyfin.sh
-bash services/portainer.sh
-bash services/lamp.sh
-```
-
-You do **not** need to rerun the whole installer.
-
----
-
-## 🛠 Requirements
-
-- Ubuntu / Debian-based server  
-- Root access  
-- A domain using Cloudflare DNS  
-- Cloudflare API Token with:  
-  - **Zone → DNS → Edit**
-
----
-
-## 🧠 Philosophy
-
-GingerStack is built around:
-
-- **Modularity over monoliths**  
-- **Containers over host installs**  
-- **Reproducibility over magic**  
-- **Git over zip files**  
-- **Security at the edge** with Traefik middleware  
-- **Deterministic installs** with locks and logs
-
----
-
-## 🤝 Contributing
-
-Pull requests are welcome.
-
-Guidelines:
-
-- One service per file in `services/`  
-- No secrets in commits  
-- Keep scripts idempotent  
-- Prefer docker-compose for multi-container stacks  
-- Avoid hidden state; log everything
-
----
-
-## 🧪 Development Workflow
-
-Typical workflow for maintainers:
-
-```bash
-git pull
-bash services/jellyfin.sh
-```
-
-or
-
-```bash
-git pull
-./install.sh
-```
-
-Changes are immediately reflected without reinstalling the system.
+- AI backend (Ollama) is **never publicly exposed**
 
 ---
 
@@ -251,4 +175,3 @@ MIT — use it, fork it, ship it.
 ---
 
 Built with ☕ and Docker by **GingerDev0**
-
