@@ -1,76 +1,66 @@
 # GingerStack
 
-A modular, self-hosted server stack installer with automatic DNS, SSL, and container management.
+![Docker](https://img.shields.io/badge/Docker-Containerized-blue)
+![Traefik](https://img.shields.io/badge/Traefik-Reverse%20Proxy-blueviolet)
+![Cloudflare](https://img.shields.io/badge/Cloudflare-DNS%20%26%20TLS-orange)
+![License: MIT](https://img.shields.io/badge/License-MIT-green)
+
+A **modular, infrastructure-focused, self-hosted server stack installer** designed for **repeatable, production-grade deployments** with automated DNS, TLS, and container lifecycle management.
 
 Built for:
 - Docker + Docker Compose  
 - Traefik reverse proxy  
 - Cloudflare DNS automation  
-- Clean, re-runnable service modules  
+- Deterministic, re-runnable service modules  
 
 ---
 
 ## ✨ Features
 
-- 🔐 Automatic HTTPS via Traefik + Cloudflare DNS challenge  
-- 🧩 Modular architecture (one service = one file)  
-- 🔁 Safe to re-run individual services  
-- 🐳 Docker-first, no host pollution  
-- 🚀 Git-friendly (no secrets committed)  
-- 🛡️ Built-in brute-force protection via Traefik rate-limit middleware
-- 🎯 SSH Honeypot with Cowrie for early attack detection
-- 🛡️ WireGuard VPN for secure remote access
-- 🔒 Single-instance installer locking with rich diagnostics
-- 🧾 Full install logging with timestamped log files
-- 🤖 **AI Stack with Ollama + OpenWebUI (CPU/GPU auto-optimized)**
+- 🔐 Automated HTTPS using Traefik with Cloudflare DNS-01 challenges  
+- 🧩 Strictly modular service architecture (one service = one installer unit)  
+- 🔁 Idempotent installs — services can be safely re-run or repaired  
+- 🐳 Container-first design with zero host-level dependency pollution  
+- 🚀 Git-safe by default (no secrets committed, runtime-only credentials)  
+- 🛡️ Integrated edge protection via Traefik rate-limiting middleware
+- 🎯 SSH honeypot (Cowrie) for early-stage intrusion visibility
+- 🛡️ WireGuard VPN for controlled, private access to internal services
+- 🔒 Single-instance installer locking to prevent race conditions
+- 🤖 **Integrated AI stack (Ollama + OpenWebUI) with automatic CPU/GPU optimization**
 
 ---
 
 ## 🧱 Installer Safety & Reliability
 
-GingerStack includes **production-grade installer safeguards** to ensure safe, repeatable runs.
+GingerStack is engineered with **infrastructure-grade safeguards** to support reliable, repeatable execution in both fresh and long-lived environments.
 
 ### 🔒 Single-instance locking
 
-The installer uses a robust `flock`-based locking system (`lib/lock.sh`) to prevent multiple installs from running at the same time.
+A robust `flock`-based locking mechanism (`lib/lock.sh`) enforces **single-installer execution**, preventing concurrent runs that could corrupt state or produce partial deployments.
 
-The lockfile records:
-- PID and parent PID
-- User and hostname
+The lockfile captures:
+- Active process metadata (PID, PPID)
+- Executing user and host
 - Start timestamp
 - Script path and working directory
-- Bash version
-- Live progress updates
+- Bash runtime version
+- Live execution status
 
-If another installer is already running, GingerStack will:
-- Refuse to start
-- Show who is holding the lock
-- Detect and warn about stale locks
+If an installer is already running, GingerStack will:
+- Refuse execution
+- Surface detailed lock ownership information
+- Detect and warn on stale or orphaned locks
 
-This prevents race conditions, partial installs, and corrupted state.
-
-### 🧾 Full install logging
-
-Every installer run generates a full log file:
-
-```
-logs/install-YYYYMMDD-HHMMSS.log
-```
-
-- All stdout and stderr are captured
-- Output is still streamed to the terminal
-- Logs survive crashes and reboots
-- The active logfile path is recorded in the lockfile
+This guarantees deterministic behavior and protects against race conditions.
 
 ### 📁 Automatic directory bootstrap
 
-On startup, the installer ensures all required directories exist and are writable:
+At startup, the installer validates and prepares all required filesystem paths:
 
 - `lib/`
-- `logs/`
-- runtime directories created by services
+- Service-specific runtime directories
 
-Missing directories are automatically created and explicitly set to:
+Missing directories are created automatically and explicitly permissioned to ensure container compatibility:
 
 ```
 chmod 0777
@@ -80,44 +70,44 @@ chmod 0777
 
 ## 📦 Included Services
 
-You can enable any of these during install:
+Services are enabled selectively during installation, allowing tailored deployments per host or environment:
 
-- **LAMP Stack** — Apache + PHP + MySQL  
-- **Portainer** — Docker management UI  
-- **Jellyfin** — Media streaming server  
-- **qBittorrent** — Seedbox / download manager  
-- **Immich** — Photo & video backup platform  
-- **Mail Stack** — poste.io + Roundcube webmail
-- **Cowrie Honeypot** — SSH attack detection and logging
-- **WireGuard VPN** — Secure remote access to internal services
-- **AI Stack** — Ollama + OpenWebUI (local LLMs)
+- **LAMP Stack** — Apache, PHP, and MySQL for legacy or internal applications  
+- **Portainer** — Operational Docker management UI  
+- **Jellyfin** — Media streaming platform  
+- **qBittorrent** — Managed download / seedbox service  
+- **Immich** — Self-hosted photo and video backup platform  
+- **Mail Stack** — poste.io with Roundcube webmail
+- **Cowrie Honeypot** — SSH attack detection and telemetry
+- **WireGuard VPN** — Secure access to internal-only services
+- **AI Stack** — Ollama + OpenWebUI for on-prem LLM workloads
 
 ---
 
 ## 🧠 AI Stack (Ollama + OpenWebUI)
 
-GingerStack includes an **optional, fully integrated AI stack**:
+GingerStack provides an **optional, production-integrated AI subsystem** suitable for on-premise inference workloads:
 
-- **Ollama** — Local LLM runtime (internal-only, never exposed)
-- **OpenWebUI** — Secure web UI exposed via Traefik
-- **Automatic CPU/GPU detection**
-- **Automatic model pulling**
-- **CPU tuning (all cores, optimized threading)**
-- **Quantized models for fast CPU inference**
-- **HTTPS + rate-limited access via Traefik**
-- **Cloudflare DNS + TLS**
+- **Ollama** — Internal-only local LLM runtime
+- **OpenWebUI** — Hardened web interface exposed exclusively via Traefik
+- **Automatic CPU/GPU capability detection**
+- **Automated model acquisition**
+- **CPU affinity and threading optimization**
+- **Quantized models for efficient CPU inference**
+- **HTTPS termination and rate-limited access**
+- **Cloudflare-managed DNS and TLS**
 
 Default behavior:
-- CPU systems pull optimized quantized models (e.g. `llama3.1:8b-instruct-q4_K_M`)
-- GPU systems pull full-precision models automatically
-- Models are immediately available in OpenWebUI after install
+- CPU-only hosts pull optimized quantized models (e.g. `llama3.1:8b-instruct-q4_K_M`)
+- GPU-enabled systems automatically deploy full-precision models
+- Models are immediately available within OpenWebUI post-install
 
-Access:
+Access endpoint:
 ```
 https://ai.your-domain.tld
 ```
 
-Data directories:
+Persistent data paths:
 ```
 /root/apps/ollama
 /root/apps/openwebui
@@ -142,7 +132,6 @@ chmod +x install.sh
 .
 ├─ install.sh
 ├─ lib/
-├─ logs/
 ├─ core/
 └─ services/
    ├─ lamp.sh
@@ -175,3 +164,4 @@ MIT — use it, fork it, ship it.
 ---
 
 Built with ☕ and Docker by **GingerDev0**
+
