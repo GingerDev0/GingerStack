@@ -177,14 +177,37 @@ purge_docker() {
   echo
   read -rp "Press ENTER to confirm full Docker removal..." _
 
-  systemctl stop docker 2>/dev/null || true
-  systemctl disable docker 2>/dev/null || true
+  # Hard stop everything Docker-related
+  systemctl stop docker docker.socket containerd 2>/dev/null || true
+  systemctl disable docker docker.socket containerd 2>/dev/null || true
 
-  docker system prune -a --volumes -f >/dev/null 2>&1 || true
-  apt purge -y docker.io docker-compose docker-compose-plugin >/dev/null 2>&1 || true
+  # Kill any remaining processes holding namespaces
+  pkill -9 dockerd 2>/dev/null || true
+  pkill -9 containerd 2>/dev/null || true
+  pkill -9 containerd-shim 2>/dev/null || true
+
+  # Force systemd to release leftover scopes
+  systemctl daemon-reexec
+  systemctl daemon-reload
+
+  # 🔑 THIS is what actually works
+  # Recursively unmount overlay2 mounts via findmnt
+  findmnt -rn -o TARGET | grep '^/var/lib/docker' | sort -r | while read -r m; do
+    umount -Rlf "$m" 2>/dev/null || true
+  done
+
+  sync
+  sleep 2
+
+  # Now removal is safe
+  rm -rf /var/lib/docker \
+         /var/lib/containerd \
+         /etc/docker \
+         /root/.docker
+
+  apt purge -y docker.io docker-ce docker-ce-cli docker-compose docker-compose-plugin containerd >/dev/null 2>&1 || true
   apt autoremove -y --purge >/dev/null 2>&1 || true
 
-  rm -rf /var/lib/docker /var/lib/containerd /etc/docker /root/.docker
   groupdel docker 2>/dev/null || true
 
   ok "Docker fully removed."

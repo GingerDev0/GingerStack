@@ -91,7 +91,75 @@ source "$ROOT_DIR/lib/logging.sh"
 lock_update "Environment loaded"
 
 # --------------------------------------------------
-# Source libraries
+# Docker hard reset + sanity checks
+# --------------------------------------------------
+docker_hard_reset() {
+  warn "Performing HARD Docker reset (purge + reinstall)"
+
+  systemctl stop docker docker.socket containerd 2>/dev/null || true
+
+  apt purge -y docker.io containerd docker-compose-plugin docker-buildx-plugin || true
+
+  rm -rf /var/lib/docker \
+         /var/lib/containerd \
+         /etc/docker \
+         /etc/systemd/system/docker.service.d
+
+  systemctl daemon-reexec
+  systemctl daemon-reload
+
+  apt update
+  apt install -y docker.io
+
+  systemctl enable --now containerd
+  systemctl enable --now docker.socket
+  systemctl enable --now docker
+}
+
+docker_sanity_check() {
+  info "Running Docker sanity checks"
+
+  if ! systemctl is-active --quiet containerd; then
+    err "containerd is NOT running"
+    systemctl status containerd --no-pager || true
+    exit 1
+  fi
+
+  if ! systemctl is-active --quiet docker.socket; then
+    err "docker.socket is NOT active"
+    systemctl status docker.socket --no-pager || true
+    exit 1
+  fi
+
+  if ! systemctl is-active --quiet docker; then
+    err "docker.service is NOT running"
+    systemctl status docker --no-pager || true
+    exit 1
+  fi
+
+  if ! docker info >/dev/null 2>&1; then
+    err "docker info failed — daemon unhealthy"
+    exit 1
+  fi
+
+  if ! docker run --rm hello-world >/dev/null 2>&1; then
+    err "Docker runtime test failed"
+    exit 1
+  fi
+
+  ok "Docker is healthy and ready"
+}
+
+read -p "Reset Docker (purge + reinstall)? (recommended) (y/n): " RESET_DOCKER
+if [[ "$RESET_DOCKER" =~ ^[Yy]$ ]]; then
+  docker_hard_reset
+fi
+
+docker_sanity_check
+lock_update "Docker verified"
+
+# --------------------------------------------------
+# Source libraries (SAFE NOW)
 # --------------------------------------------------
 source "$ROOT_DIR/lib/docker.sh"
 source "$ROOT_DIR/lib/cloudflare.sh"
