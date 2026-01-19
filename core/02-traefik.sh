@@ -1,27 +1,39 @@
 info "Installing Traefik..."
 
+# --------------------------------------------------
+# Resolve launch directory (this_dir)
+# --------------------------------------------------
+ROOT_DIR="$(pwd)"
+SSL_DIR="$ROOT_DIR/lib/ssl"
+
 TRAEFIK_DIR="/root/apps/traefik"
 TRAEFIK_FILE="$TRAEFIK_DIR/traefik.yml"
 TRAEFIK_DYNAMIC="$TRAEFIK_DIR/dynamic.yml"
 
-# ensure base dir
+# --------------------------------------------------
+# Ensure directories
+# --------------------------------------------------
 mkdir -p "$TRAEFIK_DIR"
+mkdir -p "$SSL_DIR"
 
+touch "$SSL_DIR/acme.json"
+chmod 600 "$SSL_DIR/acme.json"
+
+# --------------------------------------------------
 # 🔥 FIX: if traefik.yml exists as a directory, remove it
+# --------------------------------------------------
 if [ -d "$TRAEFIK_FILE" ]; then
   warn "$TRAEFIK_FILE is a directory — removing it"
   rm -rf "$TRAEFIK_FILE"
 fi
 
+# --------------------------------------------------
 # 🔥 FIX: if dynamic.yml exists as a directory, remove it
+# --------------------------------------------------
 if [ -d "$TRAEFIK_DYNAMIC" ]; then
   warn "$TRAEFIK_DYNAMIC is a directory — removing it"
   rm -rf "$TRAEFIK_DYNAMIC"
 fi
-
-mkdir -p "$TRAEFIK_DIR/letsencrypt"
-touch "$TRAEFIK_DIR/letsencrypt/acme.json"
-chmod 600 "$TRAEFIK_DIR/letsencrypt/acme.json"
 
 # --------------------------------------------------
 # Traefik static config
@@ -48,7 +60,7 @@ certificatesResolvers:
   cloudflare:
     acme:
       email: admin@$ZONE_NAME
-      storage: /letsencrypt/acme.json
+      storage: /ssl/acme.json
       dnsChallenge:
         provider: cloudflare
 
@@ -93,7 +105,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./traefik.yml:/traefik.yml:ro
       - ./dynamic.yml:/dynamic.yml:ro
-      - ./letsencrypt:/letsencrypt
+      - $SSL_DIR:/ssl
     command:
       - "--configFile=/traefik.yml"
     networks:
@@ -104,6 +116,7 @@ services:
       - "traefik.http.routers.traefik.entrypoints=websecure"
       - "traefik.http.routers.traefik.tls.certresolver=cloudflare"
       - "traefik.http.routers.traefik.service=api@internal"
+
 networks:
   proxy:
     external: true

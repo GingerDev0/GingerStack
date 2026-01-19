@@ -73,7 +73,28 @@ echo "────────────────────────�
 # --------------------------------------------------
 # Prevent multiple installer instances
 # --------------------------------------------------
+# --------------------------------------------------
+# Verify required core libraries exist
+# --------------------------------------------------
+REQUIRED_LIBS=(
+  "$ROOT_DIR/lib/lock.sh"
+  "$ROOT_DIR/lib/logging.sh"
+  "$ROOT_DIR/lib/docker.sh"
+  "$ROOT_DIR/lib/cloudflare.sh"
+)
+
+for lib in "${REQUIRED_LIBS[@]}"; do
+  if [[ ! -f "$lib" ]]; then
+    echo "FATAL: Required library missing: $lib" >&2
+    echo "This installer is incomplete or corrupted." >&2
+    echo "Please re-clone the repository and try again." >&2
+    exit 1
+  fi
+done
+
+# Safe to source after validation
 source "$ROOT_DIR/lib/lock.sh"
+source "$ROOT_DIR/lib/logging.sh"
 lock_init gingerstack-installer
 lock_update "Installer started"
 
@@ -237,9 +258,60 @@ if [[ "$INSTALL_LAMP" =~ ^[Yy]$ ]]; then
   PHP_VER="${PHP_CHOICE:+${PHP_VERSIONS[$((PHP_CHOICE-1))]}}"
   PHP_VER="${PHP_VER:-$LATEST_PHP}"
 
+  export PHP_VER
   ok "Using PHP $PHP_VER"
   lock_update "PHP version selected: $PHP_VER"
 
+  # --------------------------------------------------
+  # PHP runtime features
+  # --------------------------------------------------
+  echo
+  echo "PHP runtime features:"
+  read -p "Enable OPcache? (recommended) (y/n): " ENABLE_OPCACHE
+  read -p "Enable ionCube Loader? (y/n): " ENABLE_IONCUBE
+  read -p "Enable Redis (cache/sessions)? (y/n): " ENABLE_REDIS
+  read -p "Enable Xdebug (dev only)? (y/n): " ENABLE_XDEBUG
+
+  echo
+  echo "PHP graphics library:"
+  echo "  [1] gd (default)"
+  echo "  [2] imagick"
+  read -p "Choose graphics library [1]: " GRAPHICS_CHOICE
+
+  case "$GRAPHICS_CHOICE" in
+    2) PHP_GRAPHICS="imagick" ;;
+    *) PHP_GRAPHICS="gd" ;;
+  esac
+
+  export ENABLE_OPCACHE ENABLE_IONCUBE ENABLE_REDIS ENABLE_XDEBUG PHP_GRAPHICS
+  lock_update "PHP runtime features selected"
+
+  # --------------------------------------------------
+  # PHP ini customization (optional)
+  # --------------------------------------------------
+  echo
+  read -p "Customize PHP runtime settings? (memory, uploads, execution time) (y/n): " CUSTOMIZE_PHP
+
+  if [[ "$CUSTOMIZE_PHP" =~ ^[Yy]$ ]]; then
+    read -p "PHP memory_limit [512M]: " PHP_MEMORY_LIMIT
+    read -p "upload_max_filesize [64M]: " PHP_UPLOAD_MAX
+    read -p "post_max_size [64M]: " PHP_POST_MAX
+    read -p "max_execution_time [300]: " PHP_MAX_EXEC
+
+    PHP_MEMORY_LIMIT="${PHP_MEMORY_LIMIT:-512M}"
+    PHP_UPLOAD_MAX="${PHP_UPLOAD_MAX:-64M}"
+    PHP_POST_MAX="${PHP_POST_MAX:-64M}"
+    PHP_MAX_EXEC="${PHP_MAX_EXEC:-300}"
+
+    export PHP_MEMORY_LIMIT PHP_UPLOAD_MAX PHP_POST_MAX PHP_MAX_EXEC
+    lock_update "Custom PHP ini values selected"
+  else
+    lock_update "Using default PHP ini values"
+  fi
+
+  # --------------------------------------------------
+  # MySQL credentials
+  # --------------------------------------------------
   read -s -p "MySQL root password: " MYSQL_ROOT_PASS; echo
   read -s -p "Confirm MySQL root password: " MYSQL_ROOT_PASS2; echo
 
@@ -257,6 +329,7 @@ read -p "Install Mail Server + Webmail? (y/n): " INSTALL_MAIL
 read -p "Install WireGuard VPN? (y/n): " INSTALL_WIREGUARD
 read -p "Install SSH Honeypot (Cowrie)? (y/n): " INSTALL_HONEYPOT
 read -p "Install AI Stack (Ollama + OpenWebUI)? (y/n): " INSTALL_AI
+read -p "Install Status page? (y/n): " INSTALL_STATUS
 
 lock_update "Service selection complete"
 
@@ -337,6 +410,8 @@ if [[ "$INSTALL_HONEYPOT" =~ ^[Yy]$ ]]; then
   sed -i 's/\r$//' "$ROOT_DIR/services/honeypot.sh"
   source "$ROOT_DIR/services/honeypot.sh"
 fi
+
+[[ "$INSTALL_STATUS" =~ ^[Yy]$ ]] && source "$ROOT_DIR/services/status.sh"
 
 # ==================================================
 # PHASE 11: Completion & Summary

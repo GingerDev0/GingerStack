@@ -139,5 +139,17 @@ if [[ -n "$SEEDBOX_PASS" ]]; then
   echo "=========================================="
 fi
 
+# --------------------------------------------------
+# STATUS INSTALL
+# --------------------------------------------------
+if [[ -n "$INSTALL_STATUS" ]]; then
+  echo
+  echo "=========================================="
+  echo " Status page installed"
+  echo "------------------------------------------"
+  echo " URL:      https://status.$ZONE_NAME"
+  echo "=========================================="
+fi
+
 echo
 ok "All services are up and running!"

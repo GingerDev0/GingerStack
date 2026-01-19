@@ -57,6 +57,12 @@ $services = [
         'color' => 'text-primary',
         'desc' => 'Roundcube Webmail',
     ],
+	'AI Stack' => [
+        'sub' => 'ai',
+        'icon' => 'fa-brain',
+        'color' => 'text-success',
+        'desc' => 'AI Models & Chat UI',
+    ],
 ];
 
 // ============================

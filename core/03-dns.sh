@@ -31,6 +31,8 @@ ensure_a "traefik"
 
 [[ "$INSTALL_IMMICH" =~ ^[Yy]$ ]] && ensure_a "immich"
 
+[[ "$INSTALL_STATUS" =~ ^[Yy]$ ]] && ensure_a "status"
+
 # --------------------------------------------------
 # MAIL
 # --------------------------------------------------
