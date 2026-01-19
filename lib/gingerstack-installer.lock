@@ -1,0 +1,19 @@
+GINGERSTACK LOCK
+────────────────────────────────
+LOCK_NAME : gingerstack-installer
+PID       : 22605
+PPID      : 2234
+USER      : root
+HOST      : localhost
+STARTED   : 2026-01-19T11:07:37+01:00
+SCRIPT    : ./install.sh
+WORKDIR   : /root/GingerStack
+BASH      : 5.1.16(1)-release
+2026-01-19T11:07:37+01:00 | Installer started
+2026-01-19T11:07:37+01:00 | Environment loaded
+2026-01-19T11:07:54+01:00 | Docker verified
+2026-01-19T11:07:56+01:00 | LAMP selected
+2026-01-19T11:07:58+01:00 | PHP version selected: 8.4
+2026-01-19T11:08:10+01:00 | Service selection complete
+2026-01-19T11:08:13+01:00 | Cloudflare zone selected: gingerdev.host
+2026-01-19T11:08:48+01:00 | Installation started

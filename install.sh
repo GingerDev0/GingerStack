@@ -1,15 +1,34 @@
 #!/usr/bin/env bash
+
+# ==================================================
+# GingerStack Installer
+# Purpose: End-to-end server bootstrap + service install
+# Audience: End users / clients (clear, step-based output)
+# ==================================================
+
+# --------------------------------------------------
+# Safety checks
+# --------------------------------------------------
+# Ensure script is run with bash (not sh/dash)
 [ -z "$BASH_VERSION" ] && { echo "ERROR: Run with bash"; exit 1; }
 
+# Exit immediately on errors and report failing line
 set -e
 trap 'err "Script exited at line $LINENO"' ERR
 
+# Ensure required dependencies exist
 command -v jq >/dev/null 2>&1 || { echo "ERROR: jq is required"; exit 1; }
 
+# Resolve installer root directory
 ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
+# ==================================================
+# PHASE 1: Filesystem & Environment Bootstrap
+# ==================================================
+
 # --------------------------------------------------
-# Directory bootstrap (ensure existence + perms)
+# Ensure required directories exist (logs, libs)
+# These are required before any other steps run
 # --------------------------------------------------
 REQUIRED_DIRS=(
   "$ROOT_DIR/lib"
@@ -22,7 +41,8 @@ for dir in "${REQUIRED_DIRS[@]}"; do
 done
 
 # --------------------------------------------------
-# Shared media directories (seedbox + jellyfin)
+# Create shared media directories
+# Used by Seedbox and Jellyfin
 # --------------------------------------------------
 MEDIA_ROOT="/root/downloads"
 
@@ -38,8 +58,12 @@ done
 
 chmod -R 755 "$MEDIA_ROOT"
 
+# ==================================================
+# PHASE 2: Installer Banner & Locking
+# ==================================================
+
 # --------------------------------------------------
-# Banner
+# Display installer header
 # --------------------------------------------------
 echo "────────────────────────────────────────"
 echo "GingerStack Installer"
@@ -47,14 +71,18 @@ echo "Started : $(date -Is)"
 echo "────────────────────────────────────────"
 
 # --------------------------------------------------
-# Locking
+# Prevent multiple installer instances
 # --------------------------------------------------
 source "$ROOT_DIR/lib/lock.sh"
 lock_init gingerstack-installer
 lock_update "Installer started"
 
+# ==================================================
+# PHASE 3: Environment Configuration
+# ==================================================
+
 # --------------------------------------------------
-# Load / bootstrap .env
+# Load or bootstrap .env configuration
 # --------------------------------------------------
 ENV_FILE="$ROOT_DIR/.env"
 
@@ -74,12 +102,13 @@ EOF
   exit 1
 fi
 
+# Export env vars for child scripts
 set -a
 source "$ENV_FILE"
 set +a
 
 # --------------------------------------------------
-# Validate required env vars
+# Validate required environment variables
 # --------------------------------------------------
 source "$ROOT_DIR/lib/logging.sh"
 
@@ -90,8 +119,13 @@ source "$ROOT_DIR/lib/logging.sh"
 
 lock_update "Environment loaded"
 
+# ==================================================
+# PHASE 4: Docker Reset & Health Checks
+# ==================================================
+
 # --------------------------------------------------
-# Docker hard reset + sanity checks
+# Optional full Docker reset
+# This ensures a clean, predictable environment
 # --------------------------------------------------
 docker_hard_reset() {
   warn "Performing HARD Docker reset (purge + reinstall)"
@@ -116,56 +150,44 @@ docker_hard_reset() {
   systemctl enable --now docker
 }
 
+# --------------------------------------------------
+# Verify Docker is healthy and usable
+# --------------------------------------------------
 docker_sanity_check() {
   info "Running Docker sanity checks"
 
-  if ! systemctl is-active --quiet containerd; then
-    err "containerd is NOT running"
-    systemctl status containerd --no-pager || true
-    exit 1
-  fi
+  systemctl is-active --quiet containerd     || { err "containerd is NOT running"; exit 1; }
+  systemctl is-active --quiet docker.socket || { err "docker.socket is NOT active"; exit 1; }
+  systemctl is-active --quiet docker        || { err "docker.service is NOT running"; exit 1; }
 
-  if ! systemctl is-active --quiet docker.socket; then
-    err "docker.socket is NOT active"
-    systemctl status docker.socket --no-pager || true
-    exit 1
-  fi
-
-  if ! systemctl is-active --quiet docker; then
-    err "docker.service is NOT running"
-    systemctl status docker --no-pager || true
-    exit 1
-  fi
-
-  if ! docker info >/dev/null 2>&1; then
-    err "docker info failed — daemon unhealthy"
-    exit 1
-  fi
-
-  if ! docker run --rm hello-world >/dev/null 2>&1; then
-    err "Docker runtime test failed"
-    exit 1
-  fi
+  docker info >/dev/null 2>&1 || { err "docker info failed — daemon unhealthy"; exit 1; }
+  docker run --rm hello-world >/dev/null 2>&1 || { err "Docker runtime test failed"; exit 1; }
 
   ok "Docker is healthy and ready"
 }
 
 read -p "Reset Docker (purge + reinstall)? (recommended) (y/n): " RESET_DOCKER
-if [[ "$RESET_DOCKER" =~ ^[Yy]$ ]]; then
-  docker_hard_reset
-fi
+[[ "$RESET_DOCKER" =~ ^[Yy]$ ]] && docker_hard_reset
 
 docker_sanity_check
 lock_update "Docker verified"
 
-# --------------------------------------------------
-# Source libraries (SAFE NOW)
-# --------------------------------------------------
+# ==================================================
+# PHASE 5: Load Core Libraries
+# ==================================================
+
+# Safe to load after Docker + env validation
 source "$ROOT_DIR/lib/docker.sh"
 source "$ROOT_DIR/lib/cloudflare.sh"
 
+# ==================================================
+# PHASE 6: User Service Selection
+# ==================================================
+
 clear
+
 cat <<'EOF'
+────────────────────────────────────────────────────
    _____ _                       _____ _             _
   / ____(_)                     / ____| |           | |
  | |  __ _ _ __   __ _  ___ _ _| (___ | |_ __ _  ___| | __
@@ -176,16 +198,21 @@ cat <<'EOF'
                  |___/
 
                 GingerStack Installer
+────────────────────────────────────────────────────
+Choose which services to install.
+Only selected services will be deployed.
+
 EOF
 
 read -p "Install LAMP stack? (y/n): " INSTALL_LAMP
 
 # --------------------------------------------------
-# LAMP-specific options
+# LAMP-specific configuration (PHP + MySQL)
 # --------------------------------------------------
 if [[ "$INSTALL_LAMP" =~ ^[Yy]$ ]]; then
   lock_update "LAMP selected"
 
+  # Fetch available PHP versions dynamically
   mapfile -t PHP_VERSIONS < <(
     curl -s "https://registry.hub.docker.com/v2/repositories/library/php/tags?page_size=100" |
       jq -r '.results[].name' |
@@ -220,7 +247,7 @@ if [[ "$INSTALL_LAMP" =~ ^[Yy]$ ]]; then
 fi
 
 # --------------------------------------------------
-# Other services
+# Optional services selection
 # --------------------------------------------------
 read -p "Install Portainer? (y/n): " INSTALL_PORTAINER
 read -p "Install Jellyfin? (y/n): " INSTALL_JELLYFIN
@@ -233,8 +260,12 @@ read -p "Install AI Stack (Ollama + OpenWebUI)? (y/n): " INSTALL_AI
 
 lock_update "Service selection complete"
 
+# ==================================================
+# PHASE 7: Cloudflare DNS Configuration
+# ==================================================
+
 # --------------------------------------------------
-# Cloudflare zone selection
+# Let user choose Cloudflare zone
 # --------------------------------------------------
 CF_API="https://api.cloudflare.com/client/v4"
 ZONES_JSON=$(curl -s "$CF_API/zones" -H "Authorization: Bearer $CF_TOKEN")
@@ -260,29 +291,37 @@ export ZONE_ID="${ZONE_IDS[$INDEX]}"
 ok "Using zone: $ZONE_NAME"
 lock_update "Cloudflare zone selected: $ZONE_NAME"
 
-# --------------------------------------------------
-# Summary
-# --------------------------------------------------
+# Apply DNS changes now that all options are known
+source "$ROOT_DIR/core/03-dns.sh"
+
+# ==================================================
+# PHASE 8: Final Confirmation
+# ==================================================
 echo
 echo "────────────────────────────────────────────────────────"
 echo "🚀 Ready to install GingerStack"
 echo "Domain: $ZONE_NAME"
+echo
+echo "This process will now set up your server and deploy all selected services."
+echo "⏳ Installation can take 10–30 minutes depending on your server speed."
+echo "☕ This is a good time to grab a coffee — no interaction will be needed."
+echo
+echo "Once started, the installation will run automatically."
 echo "────────────────────────────────────────────────────────"
-read -p "Press ENTER to start installation..."
+read -p "Press ENTER to begin installation..."
 
 lock_update "Installation started"
 
-# --------------------------------------------------
-# Core
-# --------------------------------------------------
+# ==================================================
+# PHASE 9: Core Infrastructure Deployment
+# ==================================================
 source "$ROOT_DIR/core/00-base.sh"
 source "$ROOT_DIR/core/01-network.sh"
-source "$ROOT_DIR/core/03-dns.sh"
 source "$ROOT_DIR/core/02-traefik.sh"
 
-# --------------------------------------------------
-# Services
-# --------------------------------------------------
+# ==================================================
+# PHASE 10: Service Deployment
+# ==================================================
 [[ "$INSTALL_PORTAINER" =~ ^[Yy]$ ]] && source "$ROOT_DIR/services/portainer.sh"
 [[ "$INSTALL_LAMP" =~ ^[Yy]$ ]]      && source "$ROOT_DIR/services/lamp.sh"
 [[ "$INSTALL_JELLYFIN" =~ ^[Yy]$ ]]  && source "$ROOT_DIR/services/jellyfin.sh"
@@ -299,6 +338,9 @@ if [[ "$INSTALL_HONEYPOT" =~ ^[Yy]$ ]]; then
   source "$ROOT_DIR/services/honeypot.sh"
 fi
 
+# ==================================================
+# PHASE 11: Completion & Summary
+# ==================================================
 lock_update "Installation complete"
 echo "Finished : $(date -Is)"
 
