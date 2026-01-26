@@ -194,6 +194,20 @@ if [[ "$INSTALL_LAMP" =~ ^[Yy]$ ]]; then
   }
 
   export MYSQL_ROOT_PASS
+
+  echo
+  echo "Choose PHP.ini configuration:"
+  echo "  [1] Production (recommended)"
+  echo "  [2] Development"
+  read -p "Select option [1]: " PHP_INI_CHOICE
+
+  case "$PHP_INI_CHOICE" in
+    2) PHP_ENV="dev" ;;
+    *) PHP_ENV="prod" ;;
+  esac
+
+  export PHP_ENV
+  lock_update "PHP ini profile selected: $PHP_ENV"
 fi
 
 echo ""
