@@ -23,10 +23,9 @@ Built for:
 - 🐳 Container-first design with zero host-level dependency pollution  
 - 🚀 Git-safe by default (no secrets committed, runtime-only credentials)  
 - 🛡️ Integrated edge protection via Traefik rate-limiting middleware
-- 🎯 SSH honeypot (Cowrie) for early-stage intrusion visibility
-- 🛡️ WireGuard VPN for controlled, private access to internal services
 - 🔒 Single-instance installer locking to prevent race conditions
-- 🤖 **Integrated AI stack (Ollama + OpenWebUI) with automatic CPU/GPU optimization**
+- 🧪 **Environment-aware PHP configuration (Production / Development)**
+- 🤖 Integrated AI stack (Ollama + OpenWebUI) with automatic CPU/GPU optimization
 
 ---
 
@@ -46,33 +45,15 @@ The lockfile captures:
 - Bash runtime version
 - Live execution status
 
-If an installer is already running, GingerStack will:
-- Refuse execution
-- Surface detailed lock ownership information
-- Detect and warn on stale or orphaned locks
-
-This guarantees deterministic behavior and protects against race conditions.
-
-### 📁 Automatic directory bootstrap
-
-At startup, the installer validates and prepares all required filesystem paths:
-
-- `lib/`
-- Service-specific runtime directories
-
-Missing directories are created automatically and explicitly permissioned to ensure container compatibility:
-
-```
-chmod 0777
-```
-
 ---
 
 ## 📦 Included Services
 
 Services are enabled selectively during installation, allowing tailored deployments per host or environment:
 
-- **LAMP Stack** — Apache, PHP, and MySQL for legacy or internal applications  
+- **LAMP Stack** — Apache, PHP, and MySQL using a stock Docker image  
+  - Static PHP configuration via `prod.ini` / `dev.ini`
+  - No custom PHP builds or version drift
 - **Portainer** — Operational Docker management UI  
 - **Jellyfin** — Media streaming platform  
 - **qBittorrent** — Managed download / seedbox service  
@@ -84,33 +65,37 @@ Services are enabled selectively during installation, allowing tailored deployme
 
 ---
 
-## 🧠 AI Stack (Ollama + OpenWebUI)
+## 🧪 PHP Configuration (LAMP)
 
-GingerStack provides an **optional, production-integrated AI subsystem** suitable for on-premise inference workloads:
+When installing LAMP, GingerStack prompts you to select a PHP configuration profile:
 
-- **Ollama** — Internal-only local LLM runtime
-- **OpenWebUI** — Hardened web interface exposed exclusively via Traefik
-- **Automatic CPU/GPU capability detection**
-- **Automated model acquisition**
-- **CPU affinity and threading optimization**
-- **Quantized models for efficient CPU inference**
-- **HTTPS termination and rate-limited access**
-- **Cloudflare-managed DNS and TLS**
-
-Default behavior:
-- CPU-only hosts pull optimized quantized models (e.g. `llama3.1:8b-instruct-q4_K_M`)
-- GPU-enabled systems automatically deploy full-precision models
-- Models are immediately available within OpenWebUI post-install
-
-Access endpoint:
 ```
-https://ai.your-domain.tld
+[1] Production (recommended)
+[2] Development
 ```
 
-Persistent data paths:
+### Profiles
+
+**Production**
+- Errors hidden from users
+- Secure session cookies
+- Hardened defaults
+
+**Development**
+- Full error reporting
+- Higher memory limits
+- Unlimited execution time
+
+PHP settings live in:
 ```
-/root/apps/ollama
-/root/apps/openwebui
+/root/apps/lamp/php/prod.ini
+/root/apps/lamp/php/dev.ini
+```
+
+Switching profiles later:
+```bash
+export PHP_ENV=dev
+docker compose restart lamp
 ```
 
 ---
@@ -164,4 +149,3 @@ MIT — use it, fork it, ship it.
 ---
 
 Built with ☕ and Docker by **GingerDev0**
-

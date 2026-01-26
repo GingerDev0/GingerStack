@@ -24,7 +24,7 @@ fi
 # --------------------------------------------------
 # Docker Compose (Apache + PHP + Traefik)
 # --------------------------------------------------
-cat > "$STATUS_DIR/docker-compose.yml" <<EOF
+cat > "$STATUS_DIR/docker-compose.yml" <<'EOF'
 services:
   apache:
     image: php:8.2-apache
@@ -34,27 +34,29 @@ services:
     command: bash -c "a2enmod rewrite headers && apache2-foreground"
 
     volumes:
-      # Web files
       - ./www:/var/www/html
-
-      # Host system info (read-only)
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
       - /:/host/root:ro
       - /etc/hostname:/host/hostname:ro
 
-      # Optional: Docker stats
-      # - /var/run/docker.sock:/var/run/docker.sock:ro
-
     networks:
       - proxy
 
     labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.status.rule=Host(\\"status.${ZONE_NAME}\\")"
-      - "traefik.http.routers.status.entrypoints=websecure"
-      - "traefik.http.routers.status.tls.certresolver=cloudflare"
-      - "traefik.http.services.status.loadbalancer.server.port=80"
+      traefik.enable: "true"
+      traefik.http.routers.status.rule: "Host(`status.${ZONE_NAME}`)"
+      traefik.http.routers.status.entrypoints: "websecure"
+      traefik.http.routers.status.tls.certresolver: "cloudflare"
+      traefik.http.routers.status.middlewares: "ui-ratelimit@file"
+
+      traefik.http.routers.status-login.rule: "Host(`status.${ZONE_NAME}`) && PathPrefix(`/api/v2/auth`)"
+      traefik.http.routers.status-login.entrypoints: "websecure"
+      traefik.http.routers.status-login.tls.certresolver: "cloudflare"
+      traefik.http.routers.status-login.middlewares: "login-ratelimit@file"
+      traefik.http.routers.status-login.service: "status"
+
+      traefik.http.services.status.loadbalancer.server.port: "80"
 
 networks:
   proxy:
