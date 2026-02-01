@@ -25,9 +25,9 @@ ensure_a "traefik"
 
 [[ "$INSTALL_JELLYFIN" =~ ^[Yy]$ ]] && ensure_a "jellyfin"
 
-if [[ "$INSTALL_AI" =~ ^[Yy]$ ]]; then
-  ensure_a "ai" "ollama"
-fi
+[[ "$INSTALL_AI" =~ ^[Yy]$ ]] && ensure_a "ai"
+
+[[ "$INSTALL_AI" =~ ^[Yy]$ ]] && ensure_a "ollama"
 
 [[ "$INSTALL_SEEDBOX" =~ ^[Yy]$ ]] && ensure_a "seedbox"
 
