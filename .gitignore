@@ -1,0 +1,8 @@
+# Environment / secrets
+.env
+
+# SSL certificates (Traefik / ACME)
+lib/ssl/*
+
+# Logs
+logs/*

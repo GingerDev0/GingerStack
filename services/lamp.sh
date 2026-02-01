@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -e
 
 info "Installing LAMP stack..."
 
@@ -7,6 +8,7 @@ info "Installing LAMP stack..."
 # --------------------------------------------------
 : "${MYSQL_ROOT_PASS:?MYSQL_ROOT_PASS is not set}"
 : "${ZONE_NAME:?ZONE_NAME is not set}"
+: "${ROOT_DIR:?ROOT_DIR is not set}"
 
 PHP_ENV="${PHP_ENV:-prod}"
 
@@ -37,13 +39,10 @@ mkdir -p "$WWW_DIR" "$PHP_DIR"
 [[ -f "$SRC_FAVICON" && ! -f "$WWW_DIR/favicon.ico" ]] && cp "$SRC_FAVICON" "$WWW_DIR/favicon.ico"
 
 # --------------------------------------------------
-# PHP.ini profiles (static, no prompts)
+# PHP.ini profiles
 # --------------------------------------------------
-
 if [[ ! -f "$PHP_INI_PROD" ]]; then
 cat > "$PHP_INI_PROD" <<'EOF'
-; GingerStack PHP – Production
-
 memory_limit = 512M
 upload_max_filesize = 64M
 post_max_size = 64M
@@ -55,7 +54,6 @@ error_reporting = E_ALL & ~E_DEPRECATED & ~E_STRICT
 expose_php = Off
 
 date.timezone = UTC
-
 session.cookie_httponly = 1
 session.cookie_secure = 1
 cgi.fix_pathinfo = 0
@@ -64,8 +62,6 @@ fi
 
 if [[ ! -f "$PHP_INI_DEV" ]]; then
 cat > "$PHP_INI_DEV" <<'EOF'
-; GingerStack PHP – Development
-
 memory_limit = 1024M
 upload_max_filesize = 128M
 post_max_size = 128M
@@ -84,50 +80,63 @@ fi
 # Select PHP.ini profile
 # --------------------------------------------------
 case "$PHP_ENV" in
-  dev)
-    PHP_INI_FILE="./php/dev.ini"
-    ;;
-  *)
-    PHP_INI_FILE="./php/prod.ini"
-    ;;
+  dev) PHP_INI_FILE="./php/dev.ini" ;;
+  *)   PHP_INI_FILE="./php/prod.ini" ;;
 esac
 
 info "Using PHP.ini profile: $PHP_ENV"
 
 # --------------------------------------------------
-# Docker Compose (default LAMP image)
+# Docker Compose
 # --------------------------------------------------
 cat > "$LAMP_DIR/docker-compose.yml" <<EOF
 services:
   lamp:
-    image: bitnami/lamp:latest
+    image: php:8.2-apache
     restart: unless-stopped
-    environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASS}
-      ALLOW_EMPTY_PASSWORD: "no"
     volumes:
-      - ./www:/app
-      - ${PHP_INI_FILE}:/opt/bitnami/php/etc/conf.d/99-custom.ini
+      - ./www:/var/www/html
+      - ${PHP_INI_FILE}:/usr/local/etc/php/conf.d/99-custom.ini
+    depends_on:
+      - mysql
     networks:
       - proxy
+      - internal
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.lamp.rule=Host(\\"${ZONE_NAME}\\")"
+      - "traefik.docker.network=proxy"
+      - "traefik.http.routers.lamp.rule=Host(\`${ZONE_NAME}\`)"
       - "traefik.http.routers.lamp.entrypoints=websecure"
       - "traefik.http.routers.lamp.tls.certresolver=cloudflare"
       - "traefik.http.routers.lamp.middlewares=ui-ratelimit@file"
-      - "traefik.http.services.lamp.loadbalancer.server.port=8080"
+      - "traefik.http.services.lamp.loadbalancer.server.port=80"
+
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    command: --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASS}
+      MYSQL_DATABASE: app
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - internal
 
   pma:
     image: phpmyadmin:latest
     restart: unless-stopped
     environment:
-      PMA_HOST: lamp
+      PMA_HOST: mysql
+    depends_on:
+      - mysql
     networks:
       - proxy
+      - internal
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.pma.rule=Host(\\"pma.${ZONE_NAME}\\")"
+      - "traefik.docker.network=proxy"
+      - "traefik.http.routers.pma.rule=Host(\`pma.${ZONE_NAME}\`)"
       - "traefik.http.routers.pma.entrypoints=websecure"
       - "traefik.http.routers.pma.tls.certresolver=cloudflare"
       - "traefik.http.routers.pma.middlewares=ui-ratelimit@file"
@@ -136,6 +145,11 @@ services:
 networks:
   proxy:
     external: true
+  internal:
+    internal: true
+
+volumes:
+  mysql_data:
 EOF
 
 # --------------------------------------------------

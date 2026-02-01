@@ -18,6 +18,6 @@ if ! docker compose version >/dev/null 2>&1; then
   chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
 fi
 
-mkdir -p /root/apps/{traefik,lamp/www,jellyfin,immich,mail/poste}
+mkdir -p /root/apps/{traefik,lamp/www,jellyfin,immich,mail/poste,n8n/data}
 mkdir -p /root/downloads/{tv,movies}
 mkdir -p /media/{tv,movies}

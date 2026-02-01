@@ -4,6 +4,11 @@ set -e
 ok "Installing Ollama + OpenWebUI..."
 
 # --------------------------------------------------
+# REQUIRED VARIABLES
+# --------------------------------------------------
+: "${ZONE_NAME:?ZONE_NAME is not set}"
+
+# --------------------------------------------------
 # GPU Detection
 # --------------------------------------------------
 HAS_NVIDIA=0
@@ -58,7 +63,7 @@ mkdir -p /root/apps/ollama
 mkdir -p /root/apps/openwebui
 
 # --------------------------------------------------
-# Ollama (internal only, CPU/GPU tuned)
+# Ollama (exposed via Traefik)
 # --------------------------------------------------
 docker run -d \
   --name ollama \
@@ -70,6 +75,13 @@ docker run -d \
   -e OLLAMA_MAX_LOADED_MODELS=1 \
   -e OLLAMA_KEEP_ALIVE=10m \
   -v /root/apps/ollama:/root/.ollama \
+  -l "traefik.enable=true" \
+  -l "traefik.docker.network=proxy" \
+  -l "traefik.http.routers.ollama.rule=Host(\`ollama.${ZONE_NAME}\`)" \
+  -l "traefik.http.routers.ollama.entrypoints=websecure" \
+  -l "traefik.http.routers.ollama.tls.certresolver=cloudflare" \
+  -l "traefik.http.routers.ollama.middlewares=ui-ratelimit@file" \
+  -l "traefik.http.services.ollama.loadbalancer.server.port=11434" \
   ollama/ollama
 
 # --------------------------------------------------
@@ -96,7 +108,7 @@ else
   ok "Pulling CPU models (optimized)"
   MODELS=(
     "llama3.1:8b-instruct-q4_K_M"
-	"phi3:mini"
+    "phi3:mini"
   )
 fi
 
@@ -117,7 +129,7 @@ docker run -d \
   -v /root/apps/openwebui:/app/backend/data \
   -l "traefik.enable=true" \
   -l "traefik.docker.network=proxy" \
-  -l "traefik.http.routers.ai.rule=Host(\"ai.$ZONE_NAME\")" \
+  -l "traefik.http.routers.ai.rule=Host(\"ai.${ZONE_NAME}\")" \
   -l "traefik.http.routers.ai.entrypoints=websecure" \
   -l "traefik.http.routers.ai.tls.certresolver=cloudflare" \
   -l "traefik.http.routers.ai.middlewares=ui-ratelimit@file" \

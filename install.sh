@@ -214,6 +214,26 @@ echo ""
 read -p "Install Portainer? (y/n): " INSTALL_PORTAINER
 read -p "Install Jellyfin? (y/n): " INSTALL_JELLYFIN
 read -p "Install Seedbox (qBittorrent)? (y/n): " INSTALL_SEEDBOX
+read -p "Install n8n? (y/n): " INSTALL_N8N
+
+if [[ "$INSTALL_N8N" =~ ^[Yy]$ ]]; then
+  lock_update "n8n selected"
+
+  read -p "n8n basic auth username: " N8N_BASIC_AUTH_USER
+  read -s -p "n8n basic auth password: " N8N_BASIC_AUTH_PASS; echo
+  read -s -p "Confirm n8n basic auth password: " N8N_BASIC_AUTH_PASS2; echo
+
+  [[ "$N8N_BASIC_AUTH_PASS" != "$N8N_BASIC_AUTH_PASS2" ]] && {
+    err "Passwords do not match"
+    exit 1
+  }
+
+  export N8N_BASIC_AUTH_USER
+  export N8N_BASIC_AUTH_PASS
+
+  lock_update "n8n credentials set"
+fi
+
 read -p "Install Immich? (y/n): " INSTALL_IMMICH
 read -p "Install Mail Server + Webmail? (y/n): " INSTALL_MAIL
 read -p "Install WireGuard VPN? (y/n): " INSTALL_WIREGUARD
@@ -276,6 +296,7 @@ source "$ROOT_DIR/core/02-traefik.sh"
 [[ "$INSTALL_LAMP" =~ ^[Yy]$ ]]      && source "$ROOT_DIR/services/lamp.sh"
 [[ "$INSTALL_JELLYFIN" =~ ^[Yy]$ ]]  && source "$ROOT_DIR/services/jellyfin.sh"
 [[ "$INSTALL_SEEDBOX" =~ ^[Yy]$ ]]   && source "$ROOT_DIR/services/seedbox.sh"
+[[ "$INSTALL_N8N" =~ ^[Yy]$ ]]       && source "$ROOT_DIR/services/n8n.sh"
 [[ "$INSTALL_IMMICH" =~ ^[Yy]$ ]]    && source "$ROOT_DIR/services/immich.sh"
 [[ "$INSTALL_MAIL" =~ ^[Yy]$ ]]      && source "$ROOT_DIR/services/mail.sh"
 [[ "$INSTALL_WIREGUARD" =~ ^[Yy]$ ]] && source "$ROOT_DIR/services/wireguard.sh"
