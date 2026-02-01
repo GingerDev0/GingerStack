@@ -1,9 +1,9 @@
 # GingerStack
 
-![Docker](https://img.shields.io/badge/Docker-Containerized-blue)
-![Traefik](https://img.shields.io/badge/Traefik-Reverse%20Proxy-blueviolet)
-![Cloudflare](https://img.shields.io/badge/Cloudflare-DNS%20%26%20TLS-orange)
-![License: MIT](https://img.shields.io/badge/License-MIT-green)
+![Docker](https://img.shields.io/badge/Docker-Containerized-blue?logo=docker&logoColor=white)
+![Traefik](https://img.shields.io/badge/Traefik-Reverse%20Proxy-blueviolet?logo=traefikproxy&logoColor=white)
+![Cloudflare](https://img.shields.io/badge/Cloudflare-DNS%20%26%20TLS-orange?logo=cloudflare&logoColor=white)
+![License: MIT](https://img.shields.io/badge/License-MIT-green?logo=open-source-initiative&logoColor=white)
 
 A **modular, infrastructure-focused, self-hosted server stack installer** designed for **repeatable, production-grade deployments** with automated DNS, TLS, and container lifecycle management.
 
@@ -24,26 +24,9 @@ Built for:
 - 🚀 Git-safe by default (no secrets committed, runtime-only credentials)  
 - 🛡️ Integrated edge protection via Traefik rate-limiting middleware
 - 🔒 Single-instance installer locking to prevent race conditions
-- 🧪 **Environment-aware PHP configuration (Production / Development)**
+- 🧪 Environment-aware PHP configuration (Production / Development)
 - 🤖 Integrated AI stack (Ollama + OpenWebUI) with automatic CPU/GPU optimization
-
----
-
-## 🧱 Installer Safety & Reliability
-
-GingerStack is engineered with **infrastructure-grade safeguards** to support reliable, repeatable execution in both fresh and long-lived environments.
-
-### 🔒 Single-instance locking
-
-A robust `flock`-based locking mechanism (`lib/lock.sh`) enforces **single-installer execution**, preventing concurrent runs that could corrupt state or produce partial deployments.
-
-The lockfile captures:
-- Active process metadata (PID, PPID)
-- Executing user and host
-- Start timestamp
-- Script path and working directory
-- Bash runtime version
-- Live execution status
+- 🔗 Secure automation workflows via **n8n**, protected behind Traefik and HTTPS
 
 ---
 
@@ -51,52 +34,16 @@ The lockfile captures:
 
 Services are enabled selectively during installation, allowing tailored deployments per host or environment:
 
-- **LAMP Stack** — Apache, PHP, and MySQL using a stock Docker image  
-  - Static PHP configuration via `prod.ini` / `dev.ini`
-  - No custom PHP builds or version drift
-- **Portainer** — Operational Docker management UI  
-- **Jellyfin** — Media streaming platform  
-- **qBittorrent** — Managed download / seedbox service  
-- **Immich** — Self-hosted photo and video backup platform  
-- **Mail Stack** — poste.io with Roundcube webmail
-- **Cowrie Honeypot** — SSH attack detection and telemetry
-- **WireGuard VPN** — Secure access to internal-only services
-- **AI Stack** — Ollama + OpenWebUI for on-prem LLM workloads
-
----
-
-## 🧪 PHP Configuration (LAMP)
-
-When installing LAMP, GingerStack prompts you to select a PHP configuration profile:
-
-```
-[1] Production (recommended)
-[2] Development
-```
-
-### Profiles
-
-**Production**
-- Errors hidden from users
-- Secure session cookies
-- Hardened defaults
-
-**Development**
-- Full error reporting
-- Higher memory limits
-- Unlimited execution time
-
-PHP settings live in:
-```
-/root/apps/lamp/php/prod.ini
-/root/apps/lamp/php/dev.ini
-```
-
-Switching profiles later:
-```bash
-export PHP_ENV=dev
-docker compose restart lamp
-```
+- **LAMP Stack** — Apache, PHP, and MySQL  
+- **Portainer** — Docker management UI  
+- **Jellyfin** — Media streaming  
+- **qBittorrent** — Seedbox service  
+- **Immich** — Photo & video backup  
+- **Mail Stack** — poste.io + webmail  
+- **Cowrie Honeypot** — SSH attack detection  
+- **WireGuard VPN** — Secure remote access  
+- **AI Stack** — Ollama + OpenWebUI  
+- **n8n** — Workflow automation platform 
 
 ---
 
@@ -127,18 +74,19 @@ chmod +x install.sh
    ├─ mail.sh
    ├─ honeypot.sh
    ├─ wireguard.sh
-   └─ ollama.sh
+   ├─ ollama.sh
+   └─ n8n.sh
 ```
 
 ---
 
 ## 🔐 Security Notes
 
-- No secrets are stored in the repo  
-- Cloudflare token is requested at runtime  
+- No secrets are stored in the repository  
+- Cloudflare API token is requested at runtime  
 - TLS certificates are stored locally and ignored by git  
-- All login endpoints are protected by Traefik rate-limiting middleware  
-- AI backend (Ollama) is **never publicly exposed**
+- All dashboards and login endpoints are protected by rate limiting  
+- Internal-only services are never exposed publicly  
 
 ---
 
