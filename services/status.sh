@@ -1,6 +1,5 @@
-# ==================================================
-# Status Service (Apache + PHP + Traefik)
-# ==================================================
+#!/usr/bin/env bash
+set -e
 
 info "Installing Status stack (Apache + PHP 8.2 + Traefik)"
 lock_update "Installing status service"
@@ -22,7 +21,7 @@ if [[ -d "$SRC_STATUS_DIR" ]]; then
 fi
 
 # --------------------------------------------------
-# Docker Compose (Apache + PHP + Traefik)
+# Write docker-compose.yml (THIS is where YAML lives)
 # --------------------------------------------------
 cat > "$STATUS_DIR/docker-compose.yml" <<'EOF'
 services:
@@ -35,10 +34,21 @@ services:
 
     volumes:
       - ./www:/var/www/html
+
+      # ===== Host system telemetry =====
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
-      - /:/host/root:ro
+      - /proc/net:/host/proc/net:ro
+      - /sys/class/net:/host/sys/class/net:ro
+      - /sys/block:/host/sys/block:ro
+      - /sys/class/thermal:/host/sys/class/thermal:ro
+
+      # Host identity
       - /etc/hostname:/host/hostname:ro
+      - /etc/os-release:/host/os-release:ro
+
+      # Disk usage
+      - /:/host/root:ro
 
     networks:
       - proxy
@@ -63,6 +73,9 @@ networks:
     external: true
 EOF
 
+# --------------------------------------------------
+# Deploy
+# --------------------------------------------------
 cd "$STATUS_DIR"
 docker compose up -d
 

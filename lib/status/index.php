@@ -1,215 +1,313 @@
 <?php
-// ==================================================
-// Helpers
-// ==================================================
-function readFileSafe($path) {
-    return is_readable($path) ? trim(file_get_contents($path)) : null;
+function humanBytes($b){
+  $u=['B','KB','MB','GB','TB'];
+  for($i=0;$b>=1024&&$i<count($u)-1;$i++) $b/=1024;
+  return round($b,2).' '.$u[$i];
 }
 
-function bytes($b) {
-    $u = ['B','KB','MB','GB','TB'];
-    for ($i = 0; $b >= 1024 && $i < count($u)-1; $i++) {
-        $b /= 1024;
-    }
-    return round($b, 2);
+function uptimeHuman($s){
+  $d=floor($s/86400); $s%=86400;
+  $h=floor($s/3600);  $s%=3600;
+  $m=floor($s/60);
+  return ($d?"{$d}d ":"").sprintf('%02dh %02dm',$h,$m);
 }
 
-// ==================================================
-// Collect stats
-// ==================================================
-function getStats() {
-    // Hostname
-    $hostname = readFileSafe('/host/hostname') ?? gethostname();
+if(isset($_GET['stats'])){
+  header('Content-Type: application/json');
 
-    // Uptime
-    $uptime = 'N/A';
-    if ($u = readFileSafe('/host/proc/uptime')) {
-        $s = (int)explode(' ', $u)[0];
-        $uptime = sprintf('%dd %02dh %02dm', $s/86400, ($s/3600)%24, ($s/60)%60);
-    }
+  /* ================= HOST INFO ================= */
 
-    // CPU
-    $load = sys_getloadavg();
-    $cores = substr_count(readFileSafe('/host/proc/cpuinfo') ?? '', 'processor');
+  $hostname = trim(file_get_contents('/host/hostname'));
 
-    // Memory
-    $mem = [];
-    foreach (file('/host/proc/meminfo') as $line) {
-        if (preg_match('/^(\w+):\s+(\d+)/', $line, $m)) {
-            $mem[$m[1]] = $m[2] * 1024;
-        }
-    }
-    $memTotal = $mem['MemTotal'] ?? 0;
-    $memFree  = $mem['MemAvailable'] ?? 0;
-    $memUsed  = $memTotal - $memFree;
+  $uptime = (int)explode(' ', trim(file_get_contents('/host/proc/uptime')))[0];
 
-    // Disk
-    $diskTotal = disk_total_space('/host/root');
-    $diskFree  = disk_free_space('/host/root');
-    $diskUsed  = $diskTotal - $diskFree;
+  /* ================= CPU ================= */
 
-    // Network
-    $rx = $tx = 0;
-    foreach (file('/host/proc/net/dev') as $line) {
-        if (strpos($line, ':') === false) continue;
-        [$iface, $data] = explode(':', $line);
-        if (trim($iface) === 'lo') continue;
-        $stats = preg_split('/\s+/', trim($data));
-        $rx += (int)$stats[0];
-        $tx += (int)$stats[8];
-    }
+  $load = sys_getloadavg();
+  $cores = (int)trim(shell_exec("nproc 2>/dev/null")) ?: 1;
+  $cpuPct = min(100, round(($load[0] / $cores) * 100));
 
-    return [
-        'hostname' => $hostname,
-        'uptime'   => $uptime,
-        'cpu'      => $load,
-        'cores'    => $cores,
-        'memory'   => [
-            'used'  => bytes($memUsed),
-            'total' => bytes($memTotal)
-        ],
-        'disk'     => [
-            'used'  => bytes($diskUsed),
-            'total' => bytes($diskTotal)
-        ],
-        'network'  => [
-            'rx' => bytes($rx),
-            'tx' => bytes($tx)
-        ],
-        'updated'  => date('Y-m-d H:i:s')
-    ];
+  /* ================= RAM ================= */
+
+  $mem=[];
+  foreach(file('/host/proc/meminfo') as $l){
+    [$k,$v]=explode(':',$l,2);
+    $mem[$k]=(int)filter_var($v,FILTER_SANITIZE_NUMBER_INT)*1024;
+  }
+
+  $ramUsed = $mem['MemTotal'] - $mem['MemAvailable'];
+  $ramPct  = round($ramUsed / $mem['MemTotal'] * 100);
+
+  /* ================= DISK ================= */
+
+  $diskTotal = disk_total_space('/host/root');
+  $diskUsed  = $diskTotal - disk_free_space('/host/root');
+  $diskPct   = round($diskUsed / $diskTotal * 100);
+
+  /* ================= NETWORK ================= */
+
+  $rx = $tx = 0;
+
+  foreach(file('/host/proc/net/dev') as $l){
+    if(strpos($l,':') === false) continue;
+
+    [$iface,$data] = explode(':',$l,2);
+    $iface = trim($iface);
+
+    if($iface === 'lo' || str_starts_with($iface,'docker') || str_starts_with($iface,'veth')) continue;
+
+    $d = preg_split('/\s+/', trim($data));
+    $rx += (int)$d[0];
+    $tx += (int)$d[8];
+  }
+
+  $f = sys_get_temp_dir().'/net.json';
+  $now = time();
+
+  $prev = file_exists($f)
+    ? json_decode(file_get_contents($f),true)
+    : ['rx'=>$rx,'tx'=>$tx,'t'=>$now];
+
+  $dt = max(1, $now - $prev['t']);
+
+  file_put_contents($f, json_encode(['rx'=>$rx,'tx'=>$tx,'t'=>$now]));
+
+  /* ================= OUTPUT ================= */
+
+  echo json_encode([
+    'hostname'  => $hostname,
+    'uptime'    => uptimeHuman($uptime),
+    'load'      => array_map(fn($v)=>round($v,2), $load),
+    'cpu'       => $cpuPct,
+
+    'ramPct'    => $ramPct,
+    'ramUsed'   => humanBytes($ramUsed),
+    'ramTotal'  => humanBytes($mem['MemTotal']),
+
+    'diskPct'   => $diskPct,
+    'diskUsed'  => humanBytes($diskUsed),
+    'diskTotal' => humanBytes($diskTotal),
+
+    'rx'        => ($rx - $prev['rx']) / $dt,
+    'tx'        => ($tx - $prev['tx']) / $dt
+  ]);
+
+  exit;
 }
-
-// ==================================================
-// JSON endpoint (GET auto-refresh)
-// ==================================================
-if (isset($_GET['data'])) {
-    header('Content-Type: application/json');
-    echo json_encode(getStats());
-    exit;
-}
-
-$stats = getStats();
 ?>
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<title>Status – <?= htmlspecialchars($stats['hostname']) ?></title>
+<meta charset="UTF-8">
+<title>Server Dashboard</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
 
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+<!-- Tailwind -->
+<script src="https://cdn.tailwindcss.com"></script>
+
+<!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
+<!-- Font Awesome -->
+<link
+  rel="stylesheet"
+  href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+  crossorigin="anonymous"
+/>
+
 <style>
-body { background:#0e1117; color:#e6edf3; }
-.card { background:#161b22; border:1px solid #222; }
+:root {
+  --panel: #0f172a;
+  --panel-border: #1e293b;
+}
+.glass {
+  background: linear-gradient(180deg, rgba(15,23,42,.85), rgba(15,23,42,.65));
+  border: 1px solid var(--panel-border);
+}
+.chart-sm { max-height: 120px }
 </style>
 </head>
-<body class="container py-4">
 
-<div class="d-flex align-items-center gap-3 mb-4">
-    <img src="logo.png"
-         alt="Logo"
-         style="height:48px"
-         class="img-fluid">
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col">
 
-    <h1 class="mb-0">
-        <i class="fa-solid fa-server text-secondary"></i>
-        <?= htmlspecialchars($stats['hostname']) ?>
-    </h1>
+<!-- ================= HEADER ================= -->
+<header class="border-b border-slate-800 bg-slate-950/80 backdrop-blur">
+  <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+
+    <div class="flex items-center gap-4">
+      <img src="logo.png" class="h-9 w-auto" alt="Logo">
+      <div>
+        <h1 class="text-lg font-semibold tracking-wide">
+          Infrastructure Dashboard
+        </h1>
+        <div class="text-xs text-slate-400">
+          <span id="hostLabel"></span> · uptime <span id="uptimeLabel"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="text-right">
+      <div class="text-xs text-slate-400 uppercase tracking-wider">System Load</div>
+      <div id="loadLabel" class="font-mono text-sm"></div>
+    </div>
+
+  </div>
+</header>
+
+<!-- ================= MAIN ================= -->
+<main class="flex-grow max-w-7xl mx-auto px-6 py-6 space-y-6">
+
+<!-- ================= KPI ROW ================= -->
+<section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+
+<!-- CPU -->
+<div class="glass rounded-xl p-4">
+  <div class="flex items-center justify-between mb-2">
+    <div class="flex items-center gap-2 text-sm text-slate-400">
+      <i class="fa-solid fa-microchip"></i> CPU Utilization
+    </div>
+    <span class="text-xs text-slate-500">%</span>
+  </div>
+  <canvas id="cpuChart" class="chart-sm mx-auto"></canvas>
+  <div id="cpuLabel" class="text-center text-xl font-semibold mt-2"></div>
 </div>
 
-<div class="row g-4">
-
-    <div class="col-md-6">
-        <div class="card p-3">
-            <h6><i class="fa-solid fa-microchip"></i> CPU Load</h6>
-            <canvas id="cpuChart"></canvas>
-            <small><?= $stats['cores'] ?> cores</small>
-        </div>
-    </div>
-
-    <div class="col-md-6">
-        <div class="card p-3">
-            <h6><i class="fa-solid fa-memory"></i> Memory</h6>
-            <canvas id="memChart"></canvas>
-        </div>
-    </div>
-
-    <div class="col-md-6">
-        <div class="card p-3">
-            <h6><i class="fa-solid fa-hard-drive"></i> Disk</h6>
-            <canvas id="diskChart"></canvas>
-        </div>
-    </div>
-
-    <div class="col-md-6">
-        <div class="card p-3">
-            <h6><i class="fa-solid fa-network-wired"></i> Network</h6>
-            <canvas id="netChart"></canvas>
-        </div>
-    </div>
-
+<!-- Memory -->
+<div class="glass rounded-xl p-4">
+  <div class="flex items-center gap-2 text-sm text-slate-400 mb-1">
+    <i class="fa-solid fa-memory"></i> Memory Usage
+  </div>
+  <div id="ramLabel" class="text-sm mb-2"></div>
+  <canvas id="ramChart" class="chart-sm"></canvas>
 </div>
 
-<div class="text-muted mt-4">
-    <i class="fa-regular fa-clock"></i>
-    Uptime: <span id="uptime"><?= $stats['uptime'] ?></span> |
-    Updated <span id="updated"><?= $stats['updated'] ?></span>
+<!-- Disk -->
+<div class="glass rounded-xl p-4">
+  <div class="flex items-center gap-2 text-sm text-slate-400 mb-1">
+    <i class="fa-solid fa-hard-drive"></i> Disk Usage
+  </div>
+  <div id="diskLabel" class="text-sm mb-2"></div>
+  <canvas id="diskChart" class="chart-sm"></canvas>
 </div>
+
+<!-- Network -->
+<div class="glass rounded-xl p-4">
+  <div class="flex items-center gap-2 text-sm text-slate-400 mb-1">
+    <i class="fa-solid fa-network-wired"></i> Network Throughput
+  </div>
+  <div class="flex justify-between text-sm mb-2">
+    <span id="rxLabel">
+      <i class="fa-solid fa-arrow-down text-cyan-400"></i>
+    </span>
+    <span id="txLabel">
+      <i class="fa-solid fa-arrow-up text-rose-400"></i>
+    </span>
+  </div>
+  <canvas id="netChart" class="chart-sm"></canvas>
+</div>
+
+</section>
+
+<!-- ================= META ================= -->
+<section class="flex items-center justify-between text-xs text-slate-500">
+  <span>
+    <i class="fa-solid fa-rotate-right mr-1"></i>
+    Auto refresh every 1 second
+  </span>
+  <span class="font-mono">
+    Live host telemetry
+  </span>
+</section>
+
+</main>
+
+<!-- ================= FOOTER ================= -->
+<footer class="border-t border-slate-800 bg-slate-950/80 backdrop-blur">
+  <div class="max-w-7xl mx-auto px-6 py-4 text-xs text-slate-500 flex items-center justify-between">
+
+    <span>
+      Powered by <span class="font-semibold text-slate-300">GingerStack</span>
+    </span>
+
+    <a
+      href="https://github.com/GingerDev0/GingerStack"
+      target="_blank"
+      class="flex items-center gap-2 hover:text-slate-300 transition"
+    >
+      <i class="fa-brands fa-github"></i>
+      GitHub
+    </a>
+
+  </div>
+</footer>
 
 <script>
-const cpuChart = new Chart(cpuChartCanvas = document.getElementById('cpuChart'), {
-    type: 'bar',
-    data: { labels: ['1m','5m','15m'], datasets: [{ data: <?= json_encode($stats['cpu']) ?> }] }
+const cpuChart=new Chart(cpuChartCtx=document.getElementById('cpuChart'),{
+ type:'doughnut',
+ data:{datasets:[{data:[0,100],backgroundColor:['#22d3ee','#020617'],borderWidth:0}]},
+ options:{cutout:'75%',plugins:{legend:{display:false}}}
 });
 
-const memChart = new Chart(document.getElementById('memChart'), {
-    type: 'doughnut',
-    data: { labels: ['Used','Free'], datasets: [{ data: [
-        <?= $stats['memory']['used'] ?>,
-        <?= $stats['memory']['total'] - $stats['memory']['used'] ?>
-    ]}]}
-});
-
-const diskChart = new Chart(document.getElementById('diskChart'), {
-    type: 'doughnut',
-    data: { labels: ['Used','Free'], datasets: [{ data: [
-        <?= $stats['disk']['used'] ?>,
-        <?= $stats['disk']['total'] - $stats['disk']['used'] ?>
-    ]}]}
-});
-
-const netChart = new Chart(document.getElementById('netChart'), {
-    type: 'bar',
-    data: { labels: ['RX','TX'], datasets: [{ data: [
-        <?= $stats['network']['rx'] ?>,
-        <?= $stats['network']['tx'] ?>
-    ]}]}
-});
-
-// Auto-refresh via GET
-async function refresh() {
-    const r = await fetch('?data=1');
-    const d = await r.json();
-
-    cpuChart.data.datasets[0].data = d.cpu;
-    memChart.data.datasets[0].data = [d.memory.used, d.memory.total - d.memory.used];
-    diskChart.data.datasets[0].data = [d.disk.used, d.disk.total - d.disk.used];
-    netChart.data.datasets[0].data = [d.network.rx, d.network.tx];
-
-    cpuChart.update();
-    memChart.update();
-    diskChart.update();
-    netChart.update();
-
-    document.getElementById('uptime').textContent = d.uptime;
-    document.getElementById('updated').textContent = d.updated;
+function miniLine(ctx,color){
+ return new Chart(ctx,{
+  type:'line',
+  data:{labels:[],datasets:[{data:[],borderColor:color,tension:.4}]},
+  options:{animation:false,plugins:{legend:{display:false}},scales:{x:{display:false},y:{display:false}}}
+ });
 }
 
-setInterval(refresh, 5000);
-</script>
+const ramChart=miniLine(document.getElementById('ramChart'),'#38bdf8');
+const diskChart=miniLine(document.getElementById('diskChart'),'#facc15');
 
+const netChart=new Chart(document.getElementById('netChart'),{
+ type:'line',
+ data:{labels:[],datasets:[
+  {data:[],borderColor:'#22d3ee',tension:.4},
+  {data:[],borderColor:'#f43f5e',tension:.4}
+ ]},
+ options:{animation:false,plugins:{legend:{display:false}},scales:{x:{display:false},y:{display:false}}}
+});
+
+function hb(b){
+ const u=['B','KB','MB','GB']; let i=0;
+ while(b>=1024&&i<u.length-1){b/=1024;i++}
+ return b.toFixed(1)+' '+u[i]+'/s';
+}
+
+async function refresh(){
+ const d=await (await fetch('?stats=1')).json();
+
+ hostLabel.textContent=d.hostname;
+ uptimeLabel.textContent=d.uptime;
+ loadLabel.textContent=d.load.join(' ');
+
+ cpuChart.data.datasets[0].data=[d.cpu,100-d.cpu];
+ cpuChart.update();
+ cpuLabel.textContent=d.cpu+'%';
+
+ ramLabel.textContent=`${d.ramUsed} / ${d.ramTotal} (${d.ramPct}%)`;
+ diskLabel.textContent=`${d.diskUsed} / ${d.diskTotal} (${d.diskPct}%)`;
+
+ ramChart.data.datasets[0].data.push(d.ramPct);
+ diskChart.data.datasets[0].data.push(d.diskPct);
+ netChart.data.datasets[0].data.push(d.rx);
+ netChart.data.datasets[1].data.push(d.tx);
+
+ rxLabel.textContent='RX '+hb(d.rx);
+ txLabel.textContent='TX '+hb(d.tx);
+
+ [ramChart,diskChart,netChart].forEach(c=>{
+  c.data.labels.push('');
+  if(c.data.labels.length>20){
+    c.data.labels.shift();
+    c.data.datasets.forEach(ds=>ds.data.shift());
+  }
+  c.update();
+ });
+}
+
+refresh();
+setInterval(refresh,1000);
+</script>
 </body>
 </html>
