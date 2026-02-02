@@ -226,7 +226,8 @@ if(isset($_GET['stats'])){
   <div class="max-w-7xl mx-auto px-6 py-4 text-xs text-slate-500 flex items-center justify-between">
 
     <span>
-      Powered by <span class="font-semibold text-slate-300">GingerStack</span>
+      Powered by <span class="font-semibold text-slate-300">GingerStack</span> &nbsp; &bull; 
+      <span class="ml-1">Developed by <span class="font-semibold text-slate-300">GingerDev</span></span>
     </span>
 
     <a

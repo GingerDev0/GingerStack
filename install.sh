@@ -234,7 +234,7 @@ if [[ "$INSTALL_N8N" =~ ^[Yy]$ ]]; then
   lock_update "n8n credentials set"
 fi
 
-read -p "Install Immich? (y/n): " INSTALL_IMMICH
+#read -p "Install Immich? (y/n): " INSTALL_IMMICH
 read -p "Install Mail Server + Webmail? (y/n): " INSTALL_MAIL
 read -p "Install WireGuard VPN? (y/n): " INSTALL_WIREGUARD
 read -p "Install SSH Honeypot (Cowrie)? (y/n): " INSTALL_HONEYPOT
@@ -297,7 +297,7 @@ source "$ROOT_DIR/core/02-traefik.sh"
 [[ "$INSTALL_JELLYFIN" =~ ^[Yy]$ ]]  && source "$ROOT_DIR/services/jellyfin.sh"
 [[ "$INSTALL_SEEDBOX" =~ ^[Yy]$ ]]   && source "$ROOT_DIR/services/seedbox.sh"
 [[ "$INSTALL_N8N" =~ ^[Yy]$ ]]       && source "$ROOT_DIR/services/n8n.sh"
-[[ "$INSTALL_IMMICH" =~ ^[Yy]$ ]]    && source "$ROOT_DIR/services/immich.sh"
+#[[ "$INSTALL_IMMICH" =~ ^[Yy]$ ]]    && source "$ROOT_DIR/services/immich.sh"
 [[ "$INSTALL_MAIL" =~ ^[Yy]$ ]]      && source "$ROOT_DIR/services/mail.sh"
 [[ "$INSTALL_WIREGUARD" =~ ^[Yy]$ ]] && source "$ROOT_DIR/services/wireguard.sh"
 [[ "$INSTALL_AI" =~ ^[Yy]$ ]]        && source "$ROOT_DIR/services/ollama.sh"
