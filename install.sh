@@ -14,7 +14,35 @@
 set -e
 trap 'err "Script exited at line $LINENO"' ERR
 
-command -v jq >/dev/null 2>&1 || { echo "ERROR: jq is required"; exit 1; }
+# --------------------------------------------------
+# Dependency Check: jq
+# --------------------------------------------------
+
+ensure_jq() {
+  if command -v jq >/dev/null 2>&1; then
+    return 0
+  fi
+
+  echo "jq not found. Installing..."
+
+  if command -v apt >/dev/null 2>&1; then
+    export DEBIAN_FRONTEND=noninteractive
+    apt update -y
+    apt install -y jq
+  else
+    echo "ERROR: Unsupported package manager. Please install jq manually."
+    exit 1
+  fi
+
+  command -v jq >/dev/null 2>&1 || {
+    echo "ERROR: Failed to install jq"
+    exit 1
+  }
+
+  echo "jq installed successfully."
+}
+
+ensure_jq
 
 ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
