@@ -15,6 +15,21 @@ set -e
 trap 'err "Script exited at line $LINENO"' ERR
 
 # --------------------------------------------------
+# Resolve Root Directory EARLY (FIX)
+# --------------------------------------------------
+ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# --------------------------------------------------
+# Early Logging Load (FIX)
+# --------------------------------------------------
+if [[ -f "$ROOT_DIR/lib/logging.sh" ]]; then
+  source "$ROOT_DIR/lib/logging.sh"
+else
+  echo "FATAL: Required library missing: $ROOT_DIR/lib/logging.sh" >&2
+  exit 1
+fi
+
+# --------------------------------------------------
 # Dependency Check: jq
 # --------------------------------------------------
 
@@ -42,9 +57,50 @@ ensure_jq() {
   echo "jq installed successfully."
 }
 
-ensure_jq
+# --------------------------------------------------
+# Dependency Check: Docker
+# --------------------------------------------------
 
-ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ensure_docker() {
+  if command -v docker >/dev/null 2>&1; then
+    info "Docker binary found."
+    return 0
+  fi
+
+  warn "Docker is not installed."
+
+  read -p "Install Docker now? (y/n): " INSTALL_DOCKER
+  if [[ ! "$INSTALL_DOCKER" =~ ^[Yy]$ ]]; then
+    err "Docker is required to continue."
+    exit 1
+  fi
+
+  if command -v apt >/dev/null 2>&1; then
+    info "Installing Docker..."
+
+    apt update -y
+    apt install -y docker.io
+
+    systemctl enable --now docker containerd
+  else
+    err "Unsupported package manager. Install Docker manually."
+    exit 1
+  fi
+
+  command -v docker >/dev/null 2>&1 || {
+    err "Docker installation failed."
+    exit 1
+  }
+
+  ok "Docker installed successfully."
+}
+
+# --------------------------------------------------
+# Run Dependency Checks
+# --------------------------------------------------
+
+ensure_jq
+ensure_docker
 
 # ==================================================
 # PHASE 1: Filesystem & Environment Bootstrap
@@ -93,7 +149,6 @@ for lib in "${REQUIRED_LIBS[@]}"; do
 done
 
 source "$ROOT_DIR/lib/lock.sh"
-source "$ROOT_DIR/lib/logging.sh"
 
 lock_init gingerstack-installer
 lock_update "Installer started"
@@ -105,8 +160,30 @@ lock_update "Installer started"
 ENV_FILE="$ROOT_DIR/.env"
 
 if [[ ! -f "$ENV_FILE" ]]; then
-  cat >"$ENV_FILE" <<'EOF'
-# GingerStack environment configuration
+cat >"$ENV_FILE" <<'EOF'
+# ==================================================
+# GingerStack Environment Configuration
+# ==================================================
+#
+# This file contains sensitive credentials.
+# DO NOT share it publicly.
+# File permissions are automatically set to 600.
+#
+# After editing this file, re-run the installer.
+#
+
+# --------------------------------------------------
+# Cloudflare Configuration
+# --------------------------------------------------
+# Create an API Token at:
+# https://dash.cloudflare.com/profile/api-tokens
+#
+# Required permissions:
+#   - Zone:Read
+#   - DNS:Edit
+#
+# Recommended: Restrict the token to a specific zone.
+#
 CF_TOKEN=PASTE_YOUR_CLOUDFLARE_API_TOKEN_HERE
 EOF
 
@@ -128,6 +205,41 @@ set +a
 }
 
 lock_update "Environment loaded"
+
+# --------------------------------------------------
+# Cloudflare Token Validation
+# --------------------------------------------------
+
+validate_cloudflare_token() {
+  info "Validating Cloudflare API token..."
+
+  CF_API="https://api.cloudflare.com/client/v4"
+
+  RESPONSE=$(curl -s -H "Authorization: Bearer $CF_TOKEN" \
+                   -H "Content-Type: application/json" \
+                   "$CF_API/user/tokens/verify")
+
+  SUCCESS=$(echo "$RESPONSE" | jq -r '.success')
+  STATUS=$(echo "$RESPONSE"  | jq -r '.result.status // empty')
+
+  if [[ "$SUCCESS" != "true" ]]; then
+    err "Cloudflare token verification failed."
+    echo ""
+    echo "Response:"
+    echo "$RESPONSE" | jq .
+    exit 1
+  fi
+
+  if [[ "$STATUS" != "active" ]]; then
+    err "Cloudflare token is not active."
+    exit 1
+  fi
+
+  ok "Cloudflare token is valid and active."
+}
+
+validate_cloudflare_token
+lock_update "Cloudflare token validated"
 
 # ==================================================
 # PHASE 4: Docker Reset & Health Checks
